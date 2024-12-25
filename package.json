@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build": "webpack --mode production"
   },
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.6",
@@ -49,7 +50,13 @@
     "react-native-svg": "^15.8.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.19.10",
-    "react-remove-scroll-bar": "^2.3.6"
+    "react-remove-scroll-bar": "^2.3.6",
+    "webpack": "^5.64.4",
+    "webpack-cli": "^4.9.1",
+    "babel-loader": "^8.2.3",
+    "style-loader": "^3.3.1",
+    "css-loader": "^6.5.1",
+    "html-webpack-plugin": "^5.5.0"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.5.1",
