@@ -5,7 +5,10 @@ module.exports = function(api) {
     plugins: [
       '@babel/plugin-transform-runtime',
       '@babel/plugin-proposal-class-properties',
-      '@babel/plugin-proposal-object-rest-spread'
+      '@babel/plugin-proposal-object-rest-spread',
+      ['@babel/plugin-transform-class-properties', { loose: true }],
+      ['@babel/plugin-transform-private-methods', { loose: true }],
+      ['@babel/plugin-transform-private-property-in-object', { loose: true }]
     ]
   };
 };
