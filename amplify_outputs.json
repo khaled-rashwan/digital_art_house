@@ -1,9 +1,9 @@
 {
   "aws_project_region": "us-east-1",
-  "aws_cognito_identity_pool_id": "us-east-1:example-identity-pool-id",
+  "aws_cognito_identity_pool_id": "us-east-1:example-pool-id",
   "aws_cognito_region": "us-east-1",
-  "aws_user_pools_id": "us-east-1_example",
-  "aws_user_pools_web_client_id": "example-web-client-id",
+  "aws_user_pools_id": "us-east-1_example-pool-id",
+  "aws_user_pools_web_client_id": "example-client-id",
   "oauth": {},
   "aws_appsync_graphqlEndpoint": "https://example.appsync-api.us-east-1.amazonaws.com/graphql",
   "aws_appsync_region": "us-east-1",
@@ -14,7 +14,5 @@
       "endpoint": "https://example.execute-api.us-east-1.amazonaws.com/dev",
       "region": "us-east-1"
     }
-  ],
-  "aws_s3_bucket": "example-bucket",
-  "aws_s3_bucket_region": "us-east-1"
+  ]
 }
