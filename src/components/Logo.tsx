@@ -1,17 +1,14 @@
 import React from 'react';
-import { Image, Platform } from 'react-native';
+import { Image } from 'react-native';
+import icon from '../../assets/icon.png'; // Single, direct import
 
-export const Logo = () => {
+export const Logo: React.FC = () => {
   return (
     <Image
-      source={
-        Platform.OS === 'web'
-          ? { uri: '/assets/icon.png' } // Path to your logo on the web
-          : require('../../assets/icon.png')  // Path to your logo for native apps (e.g., in an `assets` folder)
-      }
+      source={icon} // Use the imported asset directly
       style={{
-        width: 300,  // Adjust width based on your needs
-        height: 300, // Adjust height based on your needs
+        width: 300,
+        height: 300,
         resizeMode: 'contain',
         marginBottom: 20,
       }}
