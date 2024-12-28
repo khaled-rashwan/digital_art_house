@@ -22,7 +22,7 @@
       "package": "com.khaled.digital_art_house"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./public/favicon.png"
     }
   }
 }
