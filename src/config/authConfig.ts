@@ -16,6 +16,7 @@ if (Platform.OS === 'web') {
   if (root) {
     root.style.justifyContent = 'center';
     root.style.background = 'linear-gradient(#FFE864, #FEB938)'
+    root.style.overflowY = 'scroll'; // Force scroll
   }
 
 } else {
