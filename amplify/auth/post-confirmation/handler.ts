@@ -91,11 +91,23 @@ import {
       const tableName = `User-${apiId}-NONE`;
   
       // Step 3: Insert a record into the DynamoDB table
+      const timestamp = new Date().toISOString(); // Generate ISO 8601 timestamp
+
+      // Construct the owner field using Cognito user attributes
+      const userSub = event.request.userAttributes.sub; // Cognito sub
+      const username = event.userName
+      const owner = `${userSub}::${username}`; // Owner format
+
       const putItemParams = {
         TableName: tableName,
         Item: {
           pocketBalance: { N: "0" },
-          id: { S: event.request.userAttributes.sub },
+          id: { S: userSub }, // Unique identifier (Cognito sub)
+          createdAt: { S: timestamp }, // Creation timestamp
+          updatedAt: { S: timestamp }, // Last updated timestamp
+          owner: { S: owner }, // Constructed owner field
+          __typename: { S: "User" }, // Typename for GraphQL compatibility
+          role: { S: "Student"}
         },
       };
   

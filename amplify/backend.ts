@@ -15,53 +15,37 @@ const backend = defineBackend({
 // Get the Lambda function resource for postConfirmation
 const postConfirmationLambda = backend.postConfirmation.resources.lambda;
 
-// Define the IAM policy statement to allow updating the "User" table in DynamoDB
-const allowPutUser = new iam.PolicyStatement({
-  sid: "AllowPutUser",
-  actions: ["dynamodb:PutItem"],
-  resources: [
-    // Replace 'UserTable' with the actual ARN of your DynamoDB table
-    "arn:aws:dynamodb:*:*:table/User-*",
-  ],
-});
+const policyStatements = [
+  // Policy for DynamoDB PutItem
+  new iam.PolicyStatement({
+    sid: "AllowDynamoDBPutItem",
+    actions: ["dynamodb:PutItem"],
+    resources: [
+      "arn:aws:dynamodb:us-east-1:503641682615:table/User-*", // Scoped to User-* tables in the us-east-1 region
+    ],
+  }),
 
-const allowListTables = new iam.PolicyStatement({
-  sid: "AllowListTables",
-  actions: [
-    "dynamodb:ListTables", // Allow ListTables (no specific resource required)
-  ],
-  resources: ["*"], // ListTables requires "*" as the resource
-});
+  // Policy for Lambda GetFunction
+  new iam.PolicyStatement({
+    sid: "AllowLambdaAccess",
+    actions: ["lambda:GetFunction"],
+    resources: [
+      "arn:aws:lambda:us-east-1:503641682615:function:amplify-*", // Scoped to Lambda functions starting with "amplify-"
+    ],
+  }),
 
-const lambdaGetFunction = new iam.PolicyStatement({
-  sid: "lambdaGetFunction",
-  actions: [
-    "lambda:GetFunction", // Allow GetFunction (no specific resource required)
-  ],
-  resources: ["*"], // GetFunction requires "*" as the resource
-});
+  // Policy for AppSync ListGraphqlApis and GetGraphqlApi
+  new iam.PolicyStatement({
+    sid: "AllowAppSyncAccess",
+    actions: [
+      "appsync:ListGraphqlApis",
+      "appsync:GetGraphqlApi",
+    ],
+    resources: [
+      "arn:aws:appsync:us-east-1:503641682615:*", // Scoped to AppSync APIs in the us-east-1 region
+    ],
+  }),
+];
 
-const dynamodbListTagsOfResource = new iam.PolicyStatement({
-  sid: "dynamodbListTagsOfResource",
-  actions: [
-    "dynamodb:ListTagsOfResource", // Allow ListTagsOfResource (no specific resource required)
-  ],
-  resources: ["*"], // ListTagsOfResource requires "*" as the resource
-});
-
-// New: Allow AppSync API actions
-const allowAppSyncActions = new iam.PolicyStatement({
-  sid: "AllowAppSyncActions",
-  actions: [
-    "appsync:ListGraphqlApis", // Allows listing all AppSync APIs
-    "appsync:GetGraphqlApi", // Allows retrieving details for a specific AppSync API
-  ],
-  resources: ["*"], // Can be scoped further if you know the AppSync API ARNs
-});
-
-// Add the policy statement to the Lambda function's role
-postConfirmationLambda.addToRolePolicy(allowPutUser);
-postConfirmationLambda.addToRolePolicy(allowListTables);
-postConfirmationLambda.addToRolePolicy(lambdaGetFunction);
-postConfirmationLambda.addToRolePolicy(dynamodbListTagsOfResource);
-postConfirmationLambda.addToRolePolicy(allowAppSyncActions);
+// Attach these policies to the Lambda function role
+policyStatements.forEach((statement) => postConfirmationLambda.addToRolePolicy(statement));
