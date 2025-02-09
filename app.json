@@ -12,7 +12,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "org.njaz.art"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,6 +24,11 @@
     },
     "web": {
       "favicon": "./public/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "62de9eed-7b08-4876-a54c-42186c309f49"
+      }
     }
   }
 }

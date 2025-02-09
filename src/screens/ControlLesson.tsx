@@ -54,11 +54,11 @@ const ControlLesson = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage: number = 10;
+  const itemsPerPage: number = 5;
   const totalPages: number = Math.ceil(lessons.length / itemsPerPage);
 
   // Define the searchable attributes
-  const searchableKeys: (keyof CustomLessonType)[] = ['title', 'description', 'courseId'];
+  const searchableKeys: (keyof CustomLessonType)[] = ['title', 'description', 'courseId', 'courseTitle'];
 
   const navigation = useNavigation(); // Instantiate navigation
 
@@ -91,11 +91,21 @@ const ControlLesson = () => {
       const response = await client.models.Lesson.list() as ListLessonsResponse;
       let lessonList: CustomLessonType[] = response.data;
 
+      // Log the source data
+      console.log('Source Data:', response.data);
+
       // Multi-attribute Search
       if (searchQuery) {
         lessonList = lessonList.filter((lesson: CustomLessonType) => {
           return searchableKeys.some((key) => {
-            const value = lesson[key];
+            let value;
+            if (key === 'courseTitle') {
+              // Get the course title from the courseMap
+              value = courseMap.get(lesson.courseId) || '';
+            } else {
+              value = lesson[key];
+            }
+
             if (value === undefined || value === null) return false;
 
             // Convert value to string for comparison
@@ -103,6 +113,9 @@ const ControlLesson = () => {
           });
         });
       }
+
+      // Log the search results
+      console.log('Search Results:', lessonList);
 
       // Sorting
       if (sortKey) {
@@ -143,6 +156,7 @@ const ControlLesson = () => {
 
   // Handle search
   const handleSearch = (text: string) => {
+    console.log('Search Query:', text);
     setSearchQuery(text);
     setCurrentPage(1); // Reset to first page on search
   };
