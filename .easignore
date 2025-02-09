@@ -1,0 +1,25 @@
+# Ignore node_modules
+node_modules
+
+# Ignore build outputs
+build
+dist
+
+# Ignore Expo specific files
+.expo
+.expo-shared
+
+# Ignore Amplify specific files
+amplify/#current-cloud-backend
+amplify/.config/local-env-info.json
+amplify/backend/amplify-meta.json
+amplify/backend/awscloudformation
+amplify/backend/.temp
+amplify/#current-cloud-backend.zip
+
+# Ignore other common files
+*.log
+*.tmp
+*.swp
+.DS_Store
+.env
