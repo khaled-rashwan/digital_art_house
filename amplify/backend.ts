@@ -1,6 +1,6 @@
 import { defineBackend, defineFunction } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
-import { data } from './data/resource';0
+import { data } from './data/resource';
 import * as iam from "aws-cdk-lib/aws-iam"
 import { postConfirmation } from './auth/post-confirmation/resource';
 import { getInstructors, getUsers, getStudents, recordBooking } from '../amplify/data/resource';
