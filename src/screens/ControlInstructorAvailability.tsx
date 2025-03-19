@@ -9,17 +9,19 @@ import {
   Button,
   TouchableOpacity,
 } from 'react-native';
+import CustomButton from '../components/CustomButton';
 import RNPickerSelect from 'react-native-picker-select';
 import { Calendar } from 'react-native-calendars';
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
 
+import { useNavigation } from '@react-navigation/native';
 const client = generateClient<Schema>();
 
 interface UserType {
   id: string;
+  name: string;
   role: string;
-  // Add other fields such as name if available
 }
 
 interface InstructorAvailabilityType {
@@ -50,7 +52,7 @@ const TimeSlot: React.FC<TimeSlotProps> = ({ timeLabel, isBooked, onToggle }) =>
 };
 
 const ControlInstructorAvailability: React.FC = () => {
-  const [users, setUsers] = useState<UserType[]>([]);
+  const navigation = useNavigation();
   const [instructors, setInstructors] = useState<UserType[]>([]);
   const [selectedInstructor, setSelectedInstructor] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -58,28 +60,32 @@ const ControlInstructorAvailability: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
 
-  // Fetch all Users
+  // Fetch all Instructors
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchInstructors = async () => {
       try {
         setLoading(true);
-        const { data: userData } = await client.models.User.list();
-        setUsers(userData);
+        // Call the Instructors query
+        const { data, errors } = await client.queries.Instructors();
+
+        if (data && data.instructors) {
+          // Parse the instructors and store them in state
+          const instructorList = JSON.parse(data.instructors).map((instructor: { username: string; name: string }) => ({
+            id: instructor.username, // Use username as the ID (sub)
+            name: instructor.name,
+            role: 'Instructor',
+          }));
+          setInstructors(instructorList);
+        }
       } catch (error) {
-        console.error('Error fetching users:', error);
-        Alert.alert('Error', 'Failed to fetch users.');
+        console.error('Error fetching instructors:', error);
+        Alert.alert('Error', 'Failed to fetch instructors.');
       } finally {
         setLoading(false);
       }
     };
-    fetchUsers();
+    fetchInstructors();
   }, []);
-
-  // Filter instructors from users
-  useEffect(() => {
-    const instructorList = users.filter(u => u.role === 'Instructor');
-    setInstructors(instructorList);
-  }, [users]);
 
   // Fetch availability for selected instructor and date
   useEffect(() => {
@@ -93,7 +99,7 @@ const ControlInstructorAvailability: React.FC = () => {
   const fetchAvailability = async () => {
     try {
       setLoading(true);
-      const { data: allAvailability } = await client.models.InstructorAvailability.list();
+      const { data: allAvailability } = await client.models.InstructorAvailability.list() as { data: InstructorAvailabilityType[] };
       const filtered = allAvailability.filter(av =>
         av.instructorId === selectedInstructor && av.date === selectedDate
       );
@@ -193,6 +199,7 @@ const ControlInstructorAvailability: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Instructor Availability</Text>
+      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
 
       {/* Instructor Selector */}
       <View style={styles.selectorContainer}>
@@ -200,7 +207,7 @@ const ControlInstructorAvailability: React.FC = () => {
         <RNPickerSelect
           onValueChange={(value) => setSelectedInstructor(value)}
           items={instructors.map((inst) => ({
-            label: inst.id, // or inst.name if available
+            label: inst.name, // Display the instructor's name
             value: inst.id,
           }))}
           placeholder={{ label: 'Select an instructor...', value: '' }}
@@ -213,7 +220,7 @@ const ControlInstructorAvailability: React.FC = () => {
       <View style={styles.selectorContainer}>
         <Text style={styles.label}>Select Date:</Text>
         <Calendar
-          onDayPress={(day) => setSelectedDate(day.dateString)}
+          onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
           markedDates={{
             [selectedDate]: { selected: true, selectedColor: '#00adf5' },
           }}
