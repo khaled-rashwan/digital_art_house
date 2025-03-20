@@ -17,7 +17,8 @@ import type { Schema } from '../../amplify/data/resource';
 
 const client = generateClient<Schema>();
 
-interface StudentType { username: string; name: string; }
+// Updated StudentType to include email
+interface StudentType { username: string; name: string; email: string; }
 type CourseType = Omit<Schema['Course']['type'], 'instructor' | 'lessons' | 'applications'>;
 type LessonType = Schema['Lesson']['type'];
 type InstructorAvailabilityType = Schema['InstructorAvailability']['type'];
@@ -62,12 +63,24 @@ const CreateBooking: React.FC = () => {
       const { data, errors } = await client.queries.Students();
       if (errors) throw new Error(errors[0].message);
       if (!data || !data.users) throw new Error('No data returned from query.');
-      return JSON.parse(data.users) as StudentType[];
+      return JSON.parse(data.users).map((user: { username: string; name: string; email: string }) => ({
+        username: user.username,
+        name: user.name || '',
+        email: user.email || ''
+      })) as StudentType[];
     } catch (error) {
       console.error('Error fetching students:', error);
       Alert.alert('Error', 'Failed to fetch students.');
       return [];
     }
+  };
+
+  // Helper function to format student display name with email
+  const formatStudentDisplay = (student: StudentType) => {
+    if (student.name && student.name.trim() !== '') {
+      return `${student.name} (${student.email})`;
+    }
+    return student.email;
   };
 
   useEffect(() => {
@@ -239,59 +252,71 @@ const CreateBooking: React.FC = () => {
       <Button title="Back" onPress={() => navigation.goBack()} />
       {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />}
 
-      <View style={styles.selectorContainer}><Text style={styles.label}>Select Student:</Text><RNPickerSelect
-        onValueChange={(value) => {
-          setStudentId(value);
-          setSelectedCourse('');
-          setSelectedLesson('');
-          setAvailabilities([]);
-          setSelectedAvailability('');
-          setSelectedDate(null);
-          setTimeSlotsForSelectedDate([]);
-        }}
-        items={students.map(student => ({ label: student.name, value: student.username }))}
-        placeholder={{ label: 'Select a student...', value: '', key: 'student-placeholder' }}
-        style={pickerSelectStyles}
-        value={studentId}
-      /></View>
-
-      {studentId !== '' && (
-        <View style={styles.selectorContainer}><Text style={styles.label}>Select Course:</Text><RNPickerSelect
+      <View style={styles.selectorContainer}>
+        <Text style={styles.label}>Select Student:</Text>
+        <RNPickerSelect
           onValueChange={(value) => {
-            setSelectedCourse(value);
+            setStudentId(value);
+            setSelectedCourse('');
             setSelectedLesson('');
             setAvailabilities([]);
             setSelectedAvailability('');
             setSelectedDate(null);
             setTimeSlotsForSelectedDate([]);
           }}
-          items={courses.map(course => ({ label: course.title, value: course.id }))}
-          placeholder={{ label: 'Select a course...', value: '', key: 'course-placeholder' }}
+          items={students.map(student => ({
+            label: formatStudentDisplay(student),
+            value: student.username
+          }))}
+          placeholder={{ label: 'Select a student...', value: '', key: 'student-placeholder' }}
           style={pickerSelectStyles}
-          value={selectedCourse}
-        /></View>
+          value={studentId}
+        />
+      </View>
+
+      {studentId !== '' && (
+        <View style={styles.selectorContainer}>
+          <Text style={styles.label}>Select Course:</Text>
+          <RNPickerSelect
+            onValueChange={(value) => {
+              setSelectedCourse(value);
+              setSelectedLesson('');
+              setAvailabilities([]);
+              setSelectedAvailability('');
+              setSelectedDate(null);
+              setTimeSlotsForSelectedDate([]);
+            }}
+            items={courses.map(course => ({ label: course.title, value: course.id }))}
+            placeholder={{ label: 'Select a course...', value: '', key: 'course-placeholder' }}
+            style={pickerSelectStyles}
+            value={selectedCourse}
+          />
+        </View>
       )}
 
       {selectedCourse !== '' && (
-        <View style={styles.selectorContainer}><Text style={styles.label}>Select Lesson:</Text><RNPickerSelect
-          onValueChange={async (value) => {
-            setSelectedLesson(value);
-            if (value && studentId) {
-              await checkExistingBooking(value);
-            } else {
-              setExistingBooking(null);
-              setCurrentAvailability(null);
-              setSelectedDate(null);
-              setSelectedAvailability('');
-              setTimeSlotsForSelectedDate([]);
-              setButtonText('Reserve Booking');
-            }
-          }}
-          items={lessons.map(lesson => ({ label: lesson.title, value: lesson.id }))}
-          placeholder={{ label: 'Select a lesson...', value: '', key: 'lesson-placeholder' }}
-          style={pickerSelectStyles}
-          value={selectedLesson}
-        /></View>
+        <View style={styles.selectorContainer}>
+          <Text style={styles.label}>Select Lesson:</Text>
+          <RNPickerSelect
+            onValueChange={async (value) => {
+              setSelectedLesson(value);
+              if (value && studentId) {
+                await checkExistingBooking(value);
+              } else {
+                setExistingBooking(null);
+                setCurrentAvailability(null);
+                setSelectedDate(null);
+                setSelectedAvailability('');
+                setTimeSlotsForSelectedDate([]);
+                setButtonText('Reserve Booking');
+              }
+            }}
+            items={lessons.map(lesson => ({ label: lesson.title, value: lesson.id }))}
+            placeholder={{ label: 'Select a lesson...', value: '', key: 'lesson-placeholder' }}
+            style={pickerSelectStyles}
+            value={selectedLesson}
+          />
+        </View>
       )}
 
       {existingBooking && currentAvailability && (
@@ -305,59 +330,65 @@ const CreateBooking: React.FC = () => {
       )}
 
       {selectedLesson && (
-        <View style={styles.calendarContainer}><Text style={styles.label}>Select Date:</Text><Calendar
-          onDayPress={(day: DateData) => {
-            const dateString = day.dateString;
-            if (uniqueDates.has(dateString)) {
-              setSelectedDate(dateString);
-              const slots = availabilities.filter(slot =>
-                new Date(slot.timeStart).toISOString().split('T')[0] === dateString
-              );
-              setTimeSlotsForSelectedDate(slots);
-              setSelectedAvailability('');
-            } else {
-              Alert.alert('No Availability', 'There are no time slots available on this date.');
-            }
-          }}
-          markedDates={{
-            ...Object.fromEntries(
-              Array.from(uniqueDates).map(date => [
-                date,
-                { marked: true, dotColor: 'green' }
-              ])
-            ),
-            ...(selectedDate ? {
-              [selectedDate]: {
-                selected: true,
-                marked: true,
-                selectedColor: 'blue',
+        <View style={styles.calendarContainer}>
+          <Text style={styles.label}>Select Date:</Text>
+          <Calendar
+            onDayPress={(day: DateData) => {
+              const dateString = day.dateString;
+              if (uniqueDates.has(dateString)) {
+                setSelectedDate(dateString);
+                const slots = availabilities.filter(slot =>
+                  new Date(slot.timeStart).toISOString().split('T')[0] === dateString
+                );
+                setTimeSlotsForSelectedDate(slots);
+                setSelectedAvailability('');
+              } else {
+                Alert.alert('No Availability', 'There are no time slots available on this date.');
               }
-            } : {}),
-          }}
-          theme={{
-            selectedDayBackgroundColor: 'blue',
-            todayTextColor: '#00adf5',
-            arrowColor: 'blue',
-          }}
-        /></View>
+            }}
+            markedDates={{
+              ...Object.fromEntries(
+                Array.from(uniqueDates).map(date => [
+                  date,
+                  { marked: true, dotColor: 'green' }
+                ])
+              ),
+              ...(selectedDate ? {
+                [selectedDate]: {
+                  selected: true,
+                  marked: true,
+                  selectedColor: 'blue',
+                }
+              } : {}),
+            }}
+            theme={{
+              selectedDayBackgroundColor: 'blue',
+              todayTextColor: '#00adf5',
+              arrowColor: 'blue',
+            }}
+          />
+        </View>
       )}
 
       {selectedDate && (
-        <View style={styles.availabilityContainer}><Text style={styles.label}>Select Time Slot for {selectedDate}:</Text><View style={styles.slotsGrid}>
-          {timeSlotsForSelectedDate.map(slot => {
-            const startDate = new Date(slot.timeStart);
-            const endDate = new Date(slot.timeEnd);
-            const timeLabel = `${startDate.toLocaleTimeString()} - ${endDate.toLocaleTimeString()}`;
-            return (
-              <TimeSlot
-                key={slot.id}
-                timeLabel={timeLabel}
-                isSelected={selectedAvailability === slot.id}
-                onPress={() => setSelectedAvailability(slot.id)}
-              />
-            );
-          })}
-        </View></View>
+        <View style={styles.availabilityContainer}>
+          <Text style={styles.label}>Select Time Slot for {selectedDate}:</Text>
+          <View style={styles.slotsGrid}>
+            {timeSlotsForSelectedDate.map(slot => {
+              const startDate = new Date(slot.timeStart);
+              const endDate = new Date(slot.timeEnd);
+              const timeLabel = `${startDate.toLocaleTimeString()} - ${endDate.toLocaleTimeString()}`;
+              return (
+                <TimeSlot
+                  key={slot.id}
+                  timeLabel={timeLabel}
+                  isSelected={selectedAvailability === slot.id}
+                  onPress={() => setSelectedAvailability(slot.id)}
+                />
+              );
+            })}
+          </View>
+        </View>
       )}
 
       <Button

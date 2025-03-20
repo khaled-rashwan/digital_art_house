@@ -18,10 +18,11 @@ import Pagination from '../components/Pagination';
 
 const client = generateClient<Schema>();
 
-// Define StudentType with an "id" property required by DataTable
+// Updated StudentType with email field
 type StudentType = {
   id: string;            // Primary key from Cognito (username)
   studentName: string;   // from Cognito attribute "name"
+  email: string;         // from Cognito attribute "email"
   pocketBalance: number; // from DynamoDB attribute "pocketBalance"
 };
 
@@ -44,7 +45,7 @@ const ControlUser = () => {
   const navigation = useNavigation();
 
   // Fetch Cognito users via the custom Users query.
-  // Expected JSON: [{ username, name }]
+  // Expected JSON: [{ username, name, email }]
   const fetchCognitoStudents = async (): Promise<any[]> => {
     try {
       const { data, errors } = await client.queries.Users();
@@ -90,19 +91,21 @@ const ControlUser = () => {
         return {
           id: cognitoUser.username,
           studentName: cognitoUser.name,
+          email: cognitoUser.email, // Added email field
           pocketBalance: matchingDbUser ? matchingDbUser.pocketBalance : 0,
         };
       }).filter(student => {
-        // Additional safety check: only include if we found a matching Student record in DynamoDB
+        // Only include if a matching Student record in DynamoDB was found
         return dbStudentUsers.some(dbUser => dbUser.id === student.id);
       });
 
-      // Filter by search query if provided
+      // Filter by search query (including email)
       let filteredStudents = mergedStudents;
       if (searchQuery) {
         filteredStudents = mergedStudents.filter((student) =>
           student.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          student.id.toLowerCase().includes(searchQuery.toLowerCase())
+          student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          student.email.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
 
@@ -173,12 +176,21 @@ const ControlUser = () => {
     }
   };
 
+  // Helper to format student display as "Name (email)"
+  const formatStudentDisplay = (student: StudentType) => {
+    if (student.studentName && student.studentName.trim() !== '') {
+      return `${student.studentName} (${student.email})`;
+    } else {
+      return student.email;
+    }
+  };
+
   // Render a student row in the table
   const renderStudentItem = (student: StudentType) => (
     <View key={student.id} style={styles.itemContainer}>
       <View style={styles.itemRow}>
         <Text style={styles.itemText}>{student.id}</Text>
-        <Text style={styles.itemText}>{student.studentName}</Text>
+        <Text style={styles.itemText}>{formatStudentDisplay(student)}</Text>
         <Text style={styles.itemText}>{student.pocketBalance}</Text>
         <View style={styles.itemActions}>
           <TouchableOpacity onPress={() => openModal(student)} style={styles.editButton}>
@@ -211,7 +223,7 @@ const ControlUser = () => {
             data={paginatedStudents}
             columns={[
               { key: 'id', label: 'Student ID' },
-              { key: 'studentName', label: 'Student Name' },
+              { key: 'studentName', label: 'Student' },
               { key: 'pocketBalance', label: 'Pocket Balance' },
             ]}
             onSort={handleSort}

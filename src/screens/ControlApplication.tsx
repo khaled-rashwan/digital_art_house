@@ -27,7 +27,7 @@ const ControlApplication = () => {
   const [applications, setApplications] = useState<ApplicationType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [courses, setCourses] = useState<CourseType[]>([]);
-  const [students, setStudents] = useState<{ id: string; name: string }[]>([]); // State to store students
+  const [students, setStudents] = useState<{ id: string; name: string; email: string }[]>([]); // Added email to the student type
 
   // Modal states
   const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -58,9 +58,10 @@ const ControlApplication = () => {
           return;
         }
         if (data && data.users) {
-          setStudents(JSON.parse(data.users).map((user: { username: string; name: string }) => ({
+          setStudents(JSON.parse(data.users).map((user: { username: string; name: string; email: string }) => ({
             id: user.username,  // Use username as the ID (sub)
-            name: user.name,
+            name: user.name || '',  // Handle cases where name might be null/undefined
+            email: user.email || '',  // Store email address
           })));
         }
       } catch (error) {
@@ -190,13 +191,27 @@ const ControlApplication = () => {
     setCurrentPage(page);
   };
 
+  // Helper function to format student display name with email
+  const formatStudentDisplay = (studentId: string) => {
+    const student = students.find(student => student.id === studentId);
+    if (!student) return studentId;
+    
+    // If name exists, show "Name (email)", otherwise just show email
+    if (student.name && student.name.trim() !== '') {
+      return `${student.name} (${student.email})`;
+    } else {
+      return student.email;
+    }
+  };
+
   const renderApplicationItem = (application: ApplicationType) => {
-    const studentName = students.find(student => student.id === application.studentId)?.name || application.studentId;
+    const studentDisplay = formatStudentDisplay(application.studentId);
     const courseName = courses.find(course => course.id === application.courseId)?.title || application.courseId;
+    
     return (
       <View key={application.id} style={styles.itemContainer}>
         <View style={styles.itemRow}>
-          <Text style={styles.itemText}>{studentName}</Text>
+          <Text style={styles.itemText}>{studentDisplay}</Text>
           <Text style={styles.itemText}>{courseName}</Text>
           <Text style={styles.itemText}>{application.status}</Text>
           <View style={styles.itemActions}>
@@ -234,7 +249,7 @@ const ControlApplication = () => {
           <DataTable
             data={paginatedApplications}
             columns={[
-              { key: 'studentId', label: 'Student Name' },
+              { key: 'studentId', label: 'Student' },
               { key: 'courseId', label: 'Course Name' },
               { key: 'status', label: 'Status' },
             ]}
@@ -255,7 +270,7 @@ const ControlApplication = () => {
         {isEditing ? (
           <>
             <Text style={styles.readOnlyText}>
-              Student: {students.find(student => student.id === currentApplication.studentId)?.name || currentApplication.studentId}
+              Student: {formatStudentDisplay(currentApplication.studentId || '')}
             </Text>
             <Text style={styles.readOnlyText}>
               Course: {courses.find(course => course.id === currentApplication.courseId)?.title || currentApplication.courseId}
@@ -270,7 +285,13 @@ const ControlApplication = () => {
             >
               <Picker.Item label="Select Student" value="" />
               {students.map((student) => (
-                <Picker.Item key={student.id} label={student.name} value={student.id} />
+                <Picker.Item 
+                  key={student.id} 
+                  label={student.name && student.name.trim() !== '' ? 
+                    `${student.name} (${student.email})` : 
+                    student.email} 
+                  value={student.id} 
+                />
               ))}
             </Picker>
             <Picker

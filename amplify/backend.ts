@@ -54,6 +54,17 @@ const policyStatements = [
       "arn:aws:appsync:us-east-1:503641682615:*", // Scoped to AppSync APIs in the us-east-1 region
     ],
   }),
+
+  // Policy for Cognito User Pools - add users to groups
+  new iam.PolicyStatement({
+    sid: "AllowCognitoGroupManagement",
+    actions: [
+      "cognito-idp:AdminAddUserToGroup",
+    ],
+    resources: [
+      "arn:aws:cognito-idp:us-east-1:503641682615:userpool/*", // Scoped to all user pools in the us-east-1 region
+    ],
+  }),
 ];
 
 // Attach these policies to the Lambda function role

@@ -29,7 +29,8 @@ type CourseType = Schema['Course']['type'];
 const ControlTransaction = () => {
   const [transactions, setTransactions] = useState<TransactionType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [students, setStudents] = useState<{ id: string; name: string }[]>([]);
+  // Updated student type to include email
+  const [students, setStudents] = useState<{ id: string; name: string; email: string }[]>([]);
   const [applications, setApplications] = useState<ApplicationType[]>([]);
   const [courses, setCourses] = useState<CourseType[]>([]);
 
@@ -53,7 +54,7 @@ const ControlTransaction = () => {
 
   const navigation = useNavigation();
 
-  // Fetch students from Cognito
+  // Fetch students from Cognito with email
   useEffect(() => {
     const fetchStudents = async () => {
       try {
@@ -63,9 +64,10 @@ const ControlTransaction = () => {
           return;
         }
         if (data && data.users) {
-          setStudents(JSON.parse(data.users).map((user: { username: string; name: string }) => ({
+          setStudents(JSON.parse(data.users).map((user: { username: string; name: string; email: string }) => ({
             id: user.username,
-            name: user.name,
+            name: user.name || '',
+            email: user.email || ''
           })));
         }
       } catch (error) {
@@ -211,8 +213,17 @@ const ControlTransaction = () => {
     setCurrentPage(page);
   };
 
+  // Helper function to format student display name with email
+  const formatStudentDisplay = (studentId: string) => {
+    const student = students.find(student => student.id === studentId);
+    if (!student) return studentId;
+    return student.name && student.name.trim() !== '' 
+      ? `${student.name} (${student.email})` 
+      : student.email;
+  };
+
   const renderTransactionItem = (transaction: TransactionType) => {
-    const studentName = students.find(student => student.id === transaction.userId)?.name || transaction.userId;
+    const studentDisplay = formatStudentDisplay(transaction.userId);
     const application = applications.find(app => app.id === transaction.relatedApplicationId);
     const courseName = application
       ? courses.find(course => course.id === application.courseId)?.title || 'N/A'
@@ -220,7 +231,7 @@ const ControlTransaction = () => {
     return (
       <View key={transaction.id} style={styles.itemContainer}>
         <View style={styles.itemRow}>
-          <Text style={styles.itemText}>{studentName}</Text>
+          <Text style={styles.itemText}>{studentDisplay}</Text>
           <Text style={styles.itemText}>{transaction.amount}</Text>
           <Text style={styles.itemText}>{transaction.transactionType}</Text>
           <Text style={styles.itemText}>{new Date(transaction.date).toLocaleDateString()}</Text>
@@ -283,7 +294,7 @@ const ControlTransaction = () => {
           <DataTable
             data={paginatedTransactions}
             columns={[
-              { key: 'userId', label: 'Student Name' },
+              { key: 'userId', label: 'Student' },
               { key: 'amount', label: 'Amount' },
               { key: 'transactionType', label: 'Type' },
               { key: 'date', label: 'Date' },
@@ -307,7 +318,7 @@ const ControlTransaction = () => {
         {isEditing ? (
           <>
             <Text style={styles.readOnlyText}>
-              Student: {students.find(student => student.id === currentTransaction.userId)?.name || currentTransaction.userId}
+              Student: {formatStudentDisplay(currentTransaction.userId || '')}
             </Text>
             <Text style={styles.readOnlyText}>
               Course: {(() => {
@@ -327,7 +338,13 @@ const ControlTransaction = () => {
             >
               <Picker.Item label="Select Student" value="" />
               {students.map((student) => (
-                <Picker.Item key={student.id} label={student.name} value={student.id} />
+                <Picker.Item 
+                  key={student.id} 
+                  label={student.name && student.name.trim() !== '' 
+                    ? `${student.name} (${student.email})` 
+                    : student.email} 
+                  value={student.id} 
+                />
               ))}
             </Picker>
             <Picker
