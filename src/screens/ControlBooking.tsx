@@ -203,6 +203,7 @@ const CreateBooking: React.FC = () => {
         await client.models.Booking.update({
           id: compositeId,
           availabilityId: selectedAvailability,
+          status: 'scheduled', // Ensure status is 'scheduled'
         });
         if (existingBooking.availabilityId) {
           await client.models.InstructorAvailability.update({
@@ -221,7 +222,7 @@ const CreateBooking: React.FC = () => {
           availabilityId: selectedAvailability,
           studentId: studentId,
           lessonId: selectedLesson,
-          status: 'scheduled',
+          status: 'scheduled', // Ensure status is 'scheduled'
         });
         await client.models.InstructorAvailability.update({
           id: selectedAvailability,
@@ -245,6 +246,15 @@ const CreateBooking: React.FC = () => {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (selectedDate) {
+      const sortedSlots = [...timeSlotsForSelectedDate].sort(
+        (a, b) => new Date(a.timeStart).getTime() - new Date(b.timeStart).getTime()
+      );
+      setTimeSlotsForSelectedDate(sortedSlots);
+    }
+  }, [selectedDate, timeSlotsForSelectedDate]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

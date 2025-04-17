@@ -30,7 +30,7 @@ const Account = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
   const [isAdmin, setIsAdmin] = useState(false); // State variable to track admin status
-
+  const [saveMessage, setSaveMessage] = useState(""); // State for save feedback message
 
   // Extend JwtPayload to include cognito:groups
   interface CognitoJwtPayload extends JwtPayload {
@@ -66,26 +66,24 @@ const Account = () => {
 
   // Fetch user attributes from Cognito
   useEffect(() => {
-    const getUserAttributes = async () => {
-      try {
-        const attributes = await fetchUserAttributes();
-        setName(attributes["name"] || ""); // Name can be editable
-        setEmail(attributes["email"] || ""); // Read-only email
-        setPhoneNumber(attributes["phone_number"] || ""); // Read-only phone number
-        setAddress(attributes["address"] || ""); // Read-only address
-
-
-      } catch (error) {
-        console.error("Error fetching user attributes:", error);
-        Alert.alert("Error", "Unable to fetch user attributes");
-      }
-    };
-
     getUserAttributes();
   }, []);
 
-  // Handle Save (if saving name back to Cognito is required)
+  // Move getUserAttributes outside of useEffect to make it reusable
+  const getUserAttributes = async () => {
+    try {
+      const attributes = await fetchUserAttributes();
+      setName(attributes["name"] || ""); // Name can be editable
+      setEmail(attributes["email"] || ""); // Read-only email
+      setPhoneNumber(attributes["phone_number"] || ""); // Read-only phone number
+      setAddress(attributes["address"] || ""); // Read-only address
+    } catch (error) {
+      console.error("Error fetching user attributes:", error);
+      Alert.alert("Error", "Unable to fetch user attributes");
+    }
+  };
 
+  // Handle Save (if saving name back to Cognito is required)
   const handleSave = async () => {
     try {
       // Prepare the input for updating user attributes
@@ -102,6 +100,11 @@ const Account = () => {
   
       if (result) {
         Alert.alert("Success", "Profile updated successfully!");
+        // Refresh user attributes to reflect changes
+        await getUserAttributes();
+        // Show save feedback message
+        setSaveMessage("Your changes have been saved!");
+        setTimeout(() => setSaveMessage(""), 3000); // Clear message after 3 seconds
       } else {
         Alert.alert("Notice", "Profile updated but additional confirmation may be required.");
       }
@@ -178,6 +181,8 @@ const Account = () => {
             multiline
           />
         </View>
+        {/* Save Feedback Message */}
+        {saveMessage ? <Text style={styles.saveMessage}>{saveMessage}</Text> : null}
         {/* Footer Note */}
         <Text style={styles.note}>
         Your contact information will be used for communication purposes.
@@ -239,6 +244,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#666",
     marginBottom: 10,
+  },
+  saveMessage: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: 'green',
+    marginVertical: 10,
   },
   adminButtonContainer: {
     marginTop: 20,

@@ -253,7 +253,7 @@ const ControlCourse = () => {
             columns={[
               { key: 'title', label: 'Title' },
               { key: 'cost', label: 'Cost' },
-              { key: 'duration', label: 'Duration (sessions)' },
+              { key: 'duration', label: 'Number of sessions' },
               { key: 'available', label: 'Available' },
             ]}
             onSort={handleSort}
@@ -281,14 +281,26 @@ const ControlCourse = () => {
           style={styles.input}
           value={currentCourse.cost?.toString() ?? ''}
           keyboardType="numeric"
-          onChangeText={(text) => setCurrentCourse({ ...currentCourse, cost: parseFloat(text) })}
+          onChangeText={(text) => {
+            const parsedValue = parseFloat(text);
+            setCurrentCourse({
+              ...currentCourse,
+              cost: isNaN(parsedValue) ? 0 : parsedValue, // Default to 0 if input is empty or invalid
+            });
+          }}
         />
         <TextInput
-          placeholder="Duration*"
+          placeholder="Number of sessions*"
           style={styles.input}
           value={currentCourse.duration?.toString() ?? ''}
           keyboardType="numeric"
-          onChangeText={(text) => setCurrentCourse({ ...currentCourse, duration: parseInt(text, 10) })}
+          onChangeText={(text) => {
+            const parsedValue = parseInt(text, 10);
+            setCurrentCourse({
+              ...currentCourse,
+              duration: isNaN(parsedValue) ? 0 : parsedValue, // Default to 0 if input is empty or invalid
+            });
+          }}
         />
         <TextInput
           placeholder="Description (optional)"

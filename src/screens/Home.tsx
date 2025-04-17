@@ -158,26 +158,24 @@ const Home = () => {
         const endDate = new Date(endString);
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'Invalid Time';
 
-        // Format to local time with timezone name
+        // Format to 12-hour time with AM/PM
         const formatTime = (date: Date) => {
             return date.toLocaleTimeString(undefined, {
                 hour: '2-digit',
                 minute: '2-digit',
-                hour12: false
+                hour12: true
             });
         };
 
         // Get timezone abbreviation
         const timeZoneName = new Intl.DateTimeFormat().resolvedOptions().timeZone;
         const timeZoneAbbr = (() => {
-            // Get timezone abbreviation
             try {
                 const formatter = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' });
                 const parts = formatter.formatToParts(new Date());
                 const timeZonePart = parts.find(part => part.type === 'timeZoneName');
                 return timeZonePart ? timeZonePart.value : timeZoneName;
             } catch (error) {
-                // Fallback to offset if browser doesn't support timezone names
                 const offset = new Date().getTimezoneOffset();
                 const hours = Math.abs(Math.floor(offset / 60));
                 const minutes = Math.abs(offset % 60);

@@ -107,9 +107,9 @@ const ControlInstructorAvailability: React.FC = () => {
       if (filtered.length > 0) {
         setAvailability(filtered);
       } else {
-        // Create default slots from 8 AM to 6 PM
+        // Create default slots from 8 AM to 11 PM
         const defaultSlots: InstructorAvailabilityType[] = [];
-        for (let hour = 8; hour < 18; hour++) {
+        for (let hour = 8; hour < 23; hour++) {
           const timeStart = new Date(`${selectedDate}T${hour.toString().padStart(2, '0')}:00:00`);
           const timeEnd = new Date(timeStart.getTime() + 60 * 60 * 1000); // 1 hour later
 
@@ -183,8 +183,9 @@ const ControlInstructorAvailability: React.FC = () => {
 
   const renderTimeSlots = () => {
     return availability.map(slot => {
-      const startHour = new Date(slot.timeStart).getHours();
-      const timeLabel = `${startHour}:00 - ${startHour + 1}:00`;
+      const startHour = new Date(slot.timeStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const endHour = new Date(slot.timeEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const timeLabel = `${startHour} - ${endHour}`;
       return (
         <TimeSlot
           key={slot.id}

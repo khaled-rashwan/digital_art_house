@@ -6,13 +6,58 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "AMPLIFY_ENV": "dev"
+      },
+      "secrets": {
+         "AMPLIFY_OUTPUTS_DEV": "@AMPLIFY_OUTPUTS_DEV"
+      },
+      "hooks": {
+        "preInstall": [
+          {
+            "file": "./eas-hooks/eas-build-inject-amplify-config.sh",
+            "cache": "false"
+          }
+        ]
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "AMPLIFY_ENV": "dev"
+      },
+      "secrets": {
+         "AMPLIFY_OUTPUTS_DEV": "@AMPLIFY_OUTPUTS_DEV"
+      },
+      "hooks": {
+        "preInstall": [
+          {
+            "file": "./eas-hooks/eas-build-inject-amplify-config.sh",
+            "cache": "false"
+          }
+        ]
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "AMPLIFY_ENV": "main"
+      },
+      "secrets": {
+         "AMPLIFY_OUTPUTS_MAIN": "@AMPLIFY_OUTPUTS_MAIN"
+      },
+      "hooks": {
+        "preInstall": [
+          {
+            "file": "./eas-hooks/eas-build-inject-amplify-config.sh",
+            "cache": "false"
+          }
+        ]
+      }
     }
   },
   "submit": {

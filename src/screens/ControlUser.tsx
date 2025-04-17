@@ -247,7 +247,11 @@ const ControlUser = () => {
           keyboardType="numeric"
           onChangeText={(text) => {
             if (currentStudent) {
-              setCurrentStudent({ ...currentStudent, pocketBalance: parseFloat(text) });
+              const parsedValue = parseFloat(text);
+              setCurrentStudent({
+                ...currentStudent,
+                pocketBalance: isNaN(parsedValue) ? 0 : parsedValue, // Default to 0 if input is empty or invalid
+              });
             }
           }}
         />
