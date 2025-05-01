@@ -18,10 +18,11 @@ import Pagination from '../components/Pagination';
 
 const client = generateClient<Schema>();
 
-// Define StudentType with an "id" property required by DataTable
+// Updated StudentType with email field
 type StudentType = {
   id: string;            // Primary key from Cognito (username)
   studentName: string;   // from Cognito attribute "name"
+  email: string;         // from Cognito attribute "email"
   pocketBalance: number; // from DynamoDB attribute "pocketBalance"
 };
 
@@ -44,7 +45,7 @@ const ControlUser = () => {
   const navigation = useNavigation();
 
   // Fetch Cognito users via the custom Users query.
-  // Expected JSON: [{ username, name }]
+  // Expected JSON: [{ username, name, email }]
   const fetchCognitoStudents = async (): Promise<any[]> => {
     try {
       const { data, errors } = await client.queries.Users();
@@ -90,19 +91,21 @@ const ControlUser = () => {
         return {
           id: cognitoUser.username,
           studentName: cognitoUser.name,
+          email: cognitoUser.email, // Added email field
           pocketBalance: matchingDbUser ? matchingDbUser.pocketBalance : 0,
         };
       }).filter(student => {
-        // Additional safety check: only include if we found a matching Student record in DynamoDB
+        // Only include if a matching Student record in DynamoDB was found
         return dbStudentUsers.some(dbUser => dbUser.id === student.id);
       });
 
-      // Filter by search query if provided
+      // Filter by search query (including email)
       let filteredStudents = mergedStudents;
       if (searchQuery) {
         filteredStudents = mergedStudents.filter((student) =>
           student.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          student.id.toLowerCase().includes(searchQuery.toLowerCase())
+          student.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          student.email.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
 
@@ -173,12 +176,21 @@ const ControlUser = () => {
     }
   };
 
+  // Helper to format student display as "Name (email)"
+  const formatStudentDisplay = (student: StudentType) => {
+    if (student.studentName && student.studentName.trim() !== '') {
+      return `${student.studentName} (${student.email})`;
+    } else {
+      return student.email;
+    }
+  };
+
   // Render a student row in the table
   const renderStudentItem = (student: StudentType) => (
     <View key={student.id} style={styles.itemContainer}>
       <View style={styles.itemRow}>
         <Text style={styles.itemText}>{student.id}</Text>
-        <Text style={styles.itemText}>{student.studentName}</Text>
+        <Text style={styles.itemText}>{formatStudentDisplay(student)}</Text>
         <Text style={styles.itemText}>{student.pocketBalance}</Text>
         <View style={styles.itemActions}>
           <TouchableOpacity onPress={() => openModal(student)} style={styles.editButton}>
@@ -196,22 +208,27 @@ const ControlUser = () => {
 
   return (
     <View style={styles.container}>
-      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
+      <Text style={styles.header}>Manage Students</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          {/* Replace with Icon if using a library */}
+          {/* <Icon name="arrow-back" size={24} color="#333" /> */}
+           <Text style={styles.backButtonText}>{'< Back'}</Text>
+        </TouchableOpacity>
       <TextInput
-        placeholder="Search Students"
+        placeholder="Search by ID, Name, or Email"
         style={styles.searchInput}
         value={searchQuery}
         onChangeText={handleSearch}
       />
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />
       ) : (
         <>
           <DataTable<StudentType>
             data={paginatedStudents}
             columns={[
               { key: 'id', label: 'Student ID' },
-              { key: 'studentName', label: 'Student Name' },
+              { key: 'studentName', label: 'Student' },
               { key: 'pocketBalance', label: 'Pocket Balance' },
             ]}
             onSort={handleSort}
@@ -219,7 +236,13 @@ const ControlUser = () => {
             sortOrder={sortOrder}
             renderItem={renderStudentItem}
           />
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+          <View style={{ marginTop: 20 }}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </View>
         </>
       )}
       <RecordModal
@@ -230,12 +253,16 @@ const ControlUser = () => {
       >
         <TextInput
           placeholder="Pocket Balance"
-          style={styles.input}
+          style={styles.modalInput}
           value={currentStudent ? currentStudent.pocketBalance.toString() : ''}
           keyboardType="numeric"
           onChangeText={(text) => {
             if (currentStudent) {
-              setCurrentStudent({ ...currentStudent, pocketBalance: parseFloat(text) });
+              const parsedValue = parseFloat(text);
+              setCurrentStudent({
+                ...currentStudent,
+                pocketBalance: isNaN(parsedValue) ? 0 : parsedValue, // Default to 0 if input is empty or invalid
+              });
             }
           }}
         />
@@ -249,44 +276,80 @@ export default ControlUser;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 50,
   },
   itemContainer: {
     borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 10,
+    borderColor: '#E5E7EB',
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   itemText: {
     flex: 1,
+    fontSize: 14,
+    color: '#374151',
     textAlign: 'center',
   },
   itemActions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   editButton: {
-    backgroundColor: '#4C58D0',
-    padding: 5,
-    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
-  input: {
+  pagination: {
+    marginTop: 20,
+  },
+  modalInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 5,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginVertical: 10,
+  },
+  backButtonText: {
+      fontSize: 25,
+      color: '#4C58D0', // Accent color
+      fontWeight: '500',
   },
 });

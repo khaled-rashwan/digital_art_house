@@ -38,5 +38,7 @@ yarn-error.*
 # amplify
 node_modules
 .amplify
-amplify_outputs*
+amplify_outputs.json
+amplify_outputs.dev.json
+amplify_outputs.main.json
 amplifyconfiguration*

@@ -107,9 +107,9 @@ const ControlInstructorAvailability: React.FC = () => {
       if (filtered.length > 0) {
         setAvailability(filtered);
       } else {
-        // Create default slots from 8 AM to 6 PM
+        // Create default slots from 8 AM to 11 PM
         const defaultSlots: InstructorAvailabilityType[] = [];
-        for (let hour = 8; hour < 18; hour++) {
+        for (let hour = 8; hour < 23; hour++) {
           const timeStart = new Date(`${selectedDate}T${hour.toString().padStart(2, '0')}:00:00`);
           const timeEnd = new Date(timeStart.getTime() + 60 * 60 * 1000); // 1 hour later
 
@@ -183,8 +183,9 @@ const ControlInstructorAvailability: React.FC = () => {
 
   const renderTimeSlots = () => {
     return availability.map(slot => {
-      const startHour = new Date(slot.timeStart).getHours();
-      const timeLabel = `${startHour}:00 - ${startHour + 1}:00`;
+      const startHour = new Date(slot.timeStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const endHour = new Date(slot.timeEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const timeLabel = `${startHour} - ${endHour}`;
       return (
         <TimeSlot
           key={slot.id}
@@ -198,16 +199,16 @@ const ControlInstructorAvailability: React.FC = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Instructor Availability</Text>
-      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
-
-      {/* Instructor Selector */}
+      <Text style={styles.header}>Manage Instructor Availability</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>{'< Back'}</Text>
+      </TouchableOpacity>
       <View style={styles.selectorContainer}>
         <Text style={styles.label}>Select Instructor:</Text>
         <RNPickerSelect
           onValueChange={(value) => setSelectedInstructor(value)}
           items={instructors.map((inst) => ({
-            label: inst.name, // Display the instructor's name
+            label: inst.name,
             value: inst.id,
           }))}
           placeholder={{ label: 'Select an instructor...', value: '' }}
@@ -215,8 +216,6 @@ const ControlInstructorAvailability: React.FC = () => {
           value={selectedInstructor}
         />
       </View>
-
-      {/* Date Picker */}
       <View style={styles.selectorContainer}>
         <Text style={styles.label}>Select Date:</Text>
         <Calendar
@@ -232,20 +231,17 @@ const ControlInstructorAvailability: React.FC = () => {
           }}
         />
       </View>
-
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />
+        <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />
       ) : selectedInstructor && selectedDate ? (
         <View style={styles.timetableContainer}>
           <Text style={styles.subTitle}>Time Slots for {selectedDate}</Text>
           <View style={styles.slotsGrid}>
             {renderTimeSlots()}
           </View>
-          <Button
-            title={saving ? 'Saving...' : 'Save Availability'}
-            onPress={saveAvailability}
-            disabled={saving}
-          />
+          <TouchableOpacity onPress={saveAvailability} style={styles.saveButton} disabled={saving}>
+            <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Availability'}</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <Text style={styles.instructions}>Please select an instructor and date.</Text>
@@ -258,15 +254,25 @@ export default ControlInstructorAvailability;
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F9FAFB',
+    padding: 20,
   },
-  title: {
+  header: {
     fontSize: 24,
     fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
     textAlign: 'center',
-    marginVertical: 20,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 25,
+    color: '#4C58D0',
+    fontWeight: '500',
   },
   selectorContainer: {
     marginVertical: 10,
@@ -274,9 +280,11 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 5,
     fontWeight: 'bold',
+    fontSize: 16,
+    color: '#374151',
   },
   loader: {
-    marginTop: 20,
+    marginTop: 50,
   },
   instructions: {
     marginTop: 20,
@@ -290,6 +298,8 @@ const styles = StyleSheet.create({
   subTitle: {
     fontSize: 18,
     marginBottom: 10,
+    fontWeight: 'bold',
+    color: '#333',
   },
   slotsGrid: {
     flexDirection: 'row',
@@ -304,13 +314,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   free: {
-    backgroundColor: '#4CAF50', // Green for free
+    backgroundColor: '#4CAF50',
   },
   booked: {
-    backgroundColor: '#F44336', // Red for booked
+    backgroundColor: '#F44336',
   },
   timeText: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  saveButton: {
+    marginTop: 20,
+    backgroundColor: '#4C58D0',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

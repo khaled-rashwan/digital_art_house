@@ -2,15 +2,15 @@ import {
     CognitoIdentityProviderClient,
     ListUserPoolsCommand,
     DescribeUserPoolCommand,
-    ListUsersInGroupCommand, // Used to list users in a specific group
+    ListUsersInGroupCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { LambdaClient, GetFunctionCommand } from "@aws-sdk/client-lambda";
 import { AppSyncClient, ListGraphqlApisCommand, GetGraphqlApiCommand } from "@aws-sdk/client-appsync";
 
 // Initialize AWS clients
 const lambdaClient = new LambdaClient({});
-const cognitoClient = new CognitoIdentityProviderClient({ region: 'us-east-1' }); // Update region if needed
-const appsyncClient = new AppSyncClient({ region: 'us-east-1' }); // Update region if needed
+const cognitoClient = new CognitoIdentityProviderClient({ region: 'us-east-1' });
+const appsyncClient = new AppSyncClient({ region: 'us-east-1' });
 
 /**
  * Lambda function handler for retrieving a list of users in the "Student" group from a Cognito User Pool.
@@ -18,7 +18,7 @@ const appsyncClient = new AppSyncClient({ region: 'us-east-1' }); // Update regi
  * allowing for environment-specific (sandbox/branch) user management.
  *
  * @returns {Promise<{ users: string, executionDuration: number }>} - A promise that resolves to an object containing
- *          a JSON string of user details in the "Student" group and the function execution duration.
+ *          a JSON string of user details (including username, name, and email) in the "Student" group and the function execution duration.
  */
 export const handler = async () => {
     const start = performance.now();
@@ -26,7 +26,7 @@ export const handler = async () => {
 
     // Step 1: Retrieve Lambda function tags to determine deployment type and environment details
     console.log("Step 1: Retrieving Lambda function tags...");
-    const lambdaParams = { FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME }; // Use environment variable for function name
+    const lambdaParams = { FunctionName: process.env.AWS_LAMBDA_FUNCTION_NAME };
     const lambdaCommand = new GetFunctionCommand(lambdaParams);
     let lambdaResponse;
     try {
@@ -35,7 +35,7 @@ export const handler = async () => {
     } catch (error) {
         console.error("Error retrieving Lambda function details:", error);
         return {
-            users: JSON.stringify([]), // Return empty list on error
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
@@ -48,7 +48,7 @@ export const handler = async () => {
     if (!tags) {
         console.warn("Warning: No tags found on the Lambda function. Cannot determine deployment type.");
         return {
-            users: JSON.stringify([]), // Return empty list if no tags
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
@@ -58,24 +58,23 @@ export const handler = async () => {
     if (!deploymentType) {
         console.error("Error: Deployment type tag ('amplify:deployment-type') not found in Lambda tags.");
         return {
-            users: JSON.stringify([]), // Return empty list if deployment type is missing
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
     console.log(`Deployment type identified from tags: ${deploymentType}`);
 
-    // Determine environment details based on deployment type (sandbox or branch)
     if (deploymentType === "sandbox") {
         console.log('Deployment type is sandbox. Extracting sandbox ID from stack name tag.');
         const stackName = tags["aws:cloudformation:stack-name"];
         if (!stackName) {
             console.error("Error: Stack name tag ('aws:cloudformation:stack-name') not found for sandbox deployment.");
             return {
-                users: JSON.stringify([]), // Return empty list if stack name is missing for sandbox
+                users: JSON.stringify([]),
                 executionDuration: performance.now() - start,
             };
         }
-        sandboxId = stackName.split("-function")[0]; // Assumes sandbox ID is before '-function' in stack name
+        sandboxId = stackName.split("-function")[0];
         console.log(`Sandbox ID extracted from stack name: ${sandboxId}`);
     } else if (deploymentType === "branch") {
         console.log('Deployment type is branch. Extracting branch name from branch name tag.');
@@ -83,7 +82,7 @@ export const handler = async () => {
         if (!branchName) {
             console.error("Error: Branch name tag ('amplify:branch-name') not found for branch deployment.");
             return {
-                users: JSON.stringify([]), // Return empty list if branch name is missing for branch
+                users: JSON.stringify([]),
                 executionDuration: performance.now() - start,
             };
         }
@@ -91,14 +90,14 @@ export const handler = async () => {
     } else {
         console.error(`Error: Unsupported deployment type: ${deploymentType}. Supported types are 'sandbox' and 'branch'.`);
         return {
-            users: JSON.stringify([]), // Return empty list for unsupported deployment type
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
 
     // Step 2: List all User Pools in the region to find the target User Pool
     console.log("Step 2: Listing all User Pools in the region...");
-    const listUserPoolsCommand = new ListUserPoolsCommand({ MaxResults: 60 }); // Adjust MaxResults for pagination if needed
+    const listUserPoolsCommand = new ListUserPoolsCommand({ MaxResults: 60 });
     let userPoolsResponse;
     try {
         userPoolsResponse = await cognitoClient.send(listUserPoolsCommand);
@@ -106,7 +105,7 @@ export const handler = async () => {
     } catch (error) {
         console.error("Error listing User Pools:", error);
         return {
-            users: JSON.stringify([]), // Return empty list on error listing user pools
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
@@ -114,7 +113,7 @@ export const handler = async () => {
     if (!userPoolsResponse.UserPools || userPoolsResponse.UserPools.length === 0) {
         console.warn("Warning: No User Pools found in the region.");
         return {
-            users: JSON.stringify([]), // Return empty list if no user pools are found
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
@@ -125,9 +124,6 @@ export const handler = async () => {
 
     if (deploymentType === "sandbox") {
         console.log("Deployment type is sandbox. Finding User Pool associated with AppSync instance based on sandbox ID.");
-
-        // Step 3a: List all AppSync instances to find the one associated with the sandbox ID
-        console.log("Step 3a: Listing all AppSync instances...");
         const listGraphqlApisCommand = new ListGraphqlApisCommand({});
         let graphqlApisResponse;
         try {
@@ -136,7 +132,7 @@ export const handler = async () => {
         } catch (error) {
             console.error("Error listing AppSync instances:", error);
             return {
-                users: JSON.stringify([]), // Return empty list on error listing appsync apis
+                users: JSON.stringify([]),
                 executionDuration: performance.now() - start,
             };
         }
@@ -144,13 +140,12 @@ export const handler = async () => {
         if (!graphqlApisResponse.graphqlApis || graphqlApisResponse.graphqlApis.length === 0) {
             console.warn("Warning: No AppSync instances found in the region.");
             return {
-                users: JSON.stringify([]), // Return empty list if no appsync apis are found
+                users: JSON.stringify([]),
                 executionDuration: performance.now() - start,
             };
         }
         console.log(`Found ${graphqlApisResponse.graphqlApis.length} AppSync instances.`);
 
-        // Step 3b: Iterate through AppSync instances to find the target instance by matching stack name tag with sandbox ID
         let targetAppSync = null;
         for (const api of graphqlApisResponse.graphqlApis) {
             console.log(`Checking AppSync API: ${api.name} (ID: ${api.apiId})`);
@@ -160,39 +155,36 @@ export const handler = async () => {
                 appSyncDetails = await appsyncClient.send(getGraphqlApiCommand);
             } catch (error) {
                 console.error(`Error getting details for AppSync API ${api.apiId}:`, error);
-                continue; // Proceed to the next AppSync API if details fetch fails
+                continue;
             }
 
             const appSyncTags = appSyncDetails.graphqlApi?.tags;
             if (!appSyncTags) {
                 console.log(`AppSync API ${api.apiId} has no tags. Skipping.`);
-                continue; // Skip AppSync instances without tags
+                continue;
             }
 
             const stackNameTag = appSyncTags["aws:cloudformation:stack-name"];
             if (stackNameTag && stackNameTag.includes(sandboxId) && appSyncDetails.graphqlApi) {
                 targetAppSync = appSyncDetails.graphqlApi;
                 console.log(`Found matching AppSync instance for sandbox ID ${sandboxId}: ${targetAppSync.name} (ID: ${targetAppSync.apiId})`);
-                break; // Exit loop once a match is found
-            } else {
-                console.log(`AppSync API ${api.apiId} stack name tag does not match sandbox ID. Skipping.`);
+                break;
             }
         }
 
         if (!targetAppSync) {
             console.error("Error: No matching AppSync instance found for sandbox ID:", sandboxId);
             return {
-                users: JSON.stringify([]), // Return empty list if no matching appsync instance
+                users: JSON.stringify([]),
                 executionDuration: performance.now() - start,
             };
         }
 
-        // Step 3c: Retrieve User Pool ID from the found AppSync instance details
         targetUserPoolId = targetAppSync.userPoolConfig?.userPoolId;
         if (!targetUserPoolId) {
             console.error("Error: No User Pool ID found in AppSync details for API:", targetAppSync.apiId);
             return {
-                users: JSON.stringify([]), // Return empty list if user pool id is missing in appsync details
+                users: JSON.stringify([]),
                 executionDuration: performance.now() - start,
             };
         }
@@ -200,7 +192,6 @@ export const handler = async () => {
 
     } else if (deploymentType === "branch") {
         console.log("Deployment type is branch. Finding User Pool with matching branch name tag.");
-        // Step 3d: Iterate through User Pools to find the one with a matching branch name tag
         for (const userPool of userPoolsResponse.UserPools) {
             console.log(`Checking User Pool: ${userPool.Name} (ID: ${userPool.Id})`);
             const describeUserPoolCommand = new DescribeUserPoolCommand({ UserPoolId: userPool.Id });
@@ -209,22 +200,20 @@ export const handler = async () => {
                 userPoolDetails = await cognitoClient.send(describeUserPoolCommand);
             } catch (error) {
                 console.error(`Error describing User Pool ${userPool.Id}:`, error);
-                continue; // Proceed to the next User Pool if describe fails
+                continue;
             }
 
             const userPoolTags = userPoolDetails.UserPool?.UserPoolTags;
 
             if (!userPoolTags) {
                 console.log(`User Pool ${userPool.Id} has no tags. Skipping.`);
-                continue; // Skip User Pools without tags
+                continue;
             }
 
             if (userPoolTags["amplify:branch-name"] === branchName) {
                 targetUserPoolId = userPool.Id;
                 console.log(`Found matching User Pool for branch ${branchName}: ${userPool.Name} (ID: ${targetUserPoolId})`);
-                break; // Exit loop once a match is found
-            } else {
-                console.log(`User Pool ${userPool.Id} branch name tag does not match branch ${branchName}. Skipping.`);
+                break;
             }
         }
     }
@@ -232,7 +221,7 @@ export const handler = async () => {
     if (!targetUserPoolId) {
         console.error("Error: No matching User Pool found based on tags for deployment type:", deploymentType);
         return {
-            users: JSON.stringify([]), // Return empty list if no matching user pool is found
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     }
@@ -244,21 +233,23 @@ export const handler = async () => {
     try {
         const listUsersInGroupCommand = new ListUsersInGroupCommand({
             UserPoolId: targetUserPoolId,
-            GroupName: "Student", // Specify the group name here
-            Limit: 60, // Adjust as needed for pagination
+            GroupName: "Student",
+            Limit: 60,
         });
 
         const response = await cognitoClient.send(listUsersInGroupCommand);
         const users = response.Users || [];
         console.log(`Found ${users.length} users in the 'Student' group.`);
 
-        // Step 5: Extract user details (username and "name" attribute) for each user
-        console.log("Step 5: Extracting user details (username and 'name' attribute).");
+        // Step 5: Extract user details (username, name, and email attributes) for each user
+        console.log("Step 5: Extracting user details (username, name, and email attributes).");
         const userDetails = users.map(user => {
             const nameAttribute = user.Attributes?.find(attr => attr.Name === 'name');
+            const emailAttribute = user.Attributes?.find(attr => attr.Name === 'email');
             return {
                 username: user.Username,
-                name: nameAttribute ? nameAttribute.Value : 'Unknown', // Default to 'Unknown' if name attribute is not found
+                name: nameAttribute ? nameAttribute.Value : 'Unknown',
+                email: emailAttribute ? emailAttribute.Value : 'Unknown' // Add email with default 'Unknown'
             };
         });
         console.log("User details extraction complete.");
@@ -266,14 +257,14 @@ export const handler = async () => {
         // Step 6: Return the list of users in the "Student" group and execution duration
         console.log("Step 6: Returning user list and execution duration.");
         return {
-            users: JSON.stringify(userDetails), // JSON-encoded list of user details
+            users: JSON.stringify(userDetails),
             executionDuration: performance.now() - start,
         };
 
     } catch (error) {
         console.error('Error fetching users from Cognito User Pool:', error);
         return {
-            users: JSON.stringify([]), // Return empty list on error fetching users
+            users: JSON.stringify([]),
             executionDuration: performance.now() - start,
         };
     } finally {

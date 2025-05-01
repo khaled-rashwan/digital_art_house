@@ -4,12 +4,14 @@ import { data } from './data/resource';
 import * as iam from "aws-cdk-lib/aws-iam"
 import { postConfirmation } from './auth/post-confirmation/resource';
 import { getInstructors, getUsers, getStudents, recordBooking } from '../amplify/data/resource';
+import { storage } from './storage/resource';
 /**
  * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
  */
 const backend = defineBackend({
   auth,
   data,
+  storage,
   postConfirmation,
   getInstructors,
   getUsers,
@@ -52,6 +54,17 @@ const policyStatements = [
     ],
     resources: [
       "arn:aws:appsync:us-east-1:503641682615:*", // Scoped to AppSync APIs in the us-east-1 region
+    ],
+  }),
+
+  // Policy for Cognito User Pools - add users to groups
+  new iam.PolicyStatement({
+    sid: "AllowCognitoGroupManagement",
+    actions: [
+      "cognito-idp:AdminAddUserToGroup",
+    ],
+    resources: [
+      "arn:aws:cognito-idp:us-east-1:503641682615:userpool/*", // Scoped to all user pools in the us-east-1 region
     ],
   }),
 ];

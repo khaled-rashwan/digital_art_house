@@ -29,7 +29,8 @@ type CourseType = Schema['Course']['type'];
 const ControlTransaction = () => {
   const [transactions, setTransactions] = useState<TransactionType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [students, setStudents] = useState<{ id: string; name: string }[]>([]);
+  // Updated student type to include email
+  const [students, setStudents] = useState<{ id: string; name: string; email: string }[]>([]);
   const [applications, setApplications] = useState<ApplicationType[]>([]);
   const [courses, setCourses] = useState<CourseType[]>([]);
 
@@ -53,7 +54,7 @@ const ControlTransaction = () => {
 
   const navigation = useNavigation();
 
-  // Fetch students from Cognito
+  // Fetch students from Cognito with email
   useEffect(() => {
     const fetchStudents = async () => {
       try {
@@ -63,9 +64,10 @@ const ControlTransaction = () => {
           return;
         }
         if (data && data.users) {
-          setStudents(JSON.parse(data.users).map((user: { username: string; name: string }) => ({
+          setStudents(JSON.parse(data.users).map((user: { username: string; name: string; email: string }) => ({
             id: user.username,
-            name: user.name,
+            name: user.name || '',
+            email: user.email || ''
           })));
         }
       } catch (error) {
@@ -211,8 +213,17 @@ const ControlTransaction = () => {
     setCurrentPage(page);
   };
 
+  // Helper function to format student display name with email
+  const formatStudentDisplay = (studentId: string) => {
+    const student = students.find(student => student.id === studentId);
+    if (!student) return studentId;
+    return student.name && student.name.trim() !== '' 
+      ? `${student.name} (${student.email})` 
+      : student.email;
+  };
+
   const renderTransactionItem = (transaction: TransactionType) => {
-    const studentName = students.find(student => student.id === transaction.userId)?.name || transaction.userId;
+    const studentDisplay = formatStudentDisplay(transaction.userId);
     const application = applications.find(app => app.id === transaction.relatedApplicationId);
     const courseName = application
       ? courses.find(course => course.id === application.courseId)?.title || 'N/A'
@@ -220,7 +231,7 @@ const ControlTransaction = () => {
     return (
       <View key={transaction.id} style={styles.itemContainer}>
         <View style={styles.itemRow}>
-          <Text style={styles.itemText}>{studentName}</Text>
+          <Text style={styles.itemText}>{studentDisplay}</Text>
           <Text style={styles.itemText}>{transaction.amount}</Text>
           <Text style={styles.itemText}>{transaction.transactionType}</Text>
           <Text style={styles.itemText}>{new Date(transaction.date).toLocaleDateString()}</Text>
@@ -230,6 +241,7 @@ const ControlTransaction = () => {
             <TouchableOpacity onPress={() => openModal(transaction)} style={styles.editButton}>
               <Text style={styles.buttonText}>Edit</Text>
             </TouchableOpacity>
+            <View style={styles.buttonSpacer} />
             <TouchableOpacity onPress={() => deleteTransaction(transaction.id)} style={styles.deleteButton}>
               <Text style={styles.buttonText}>Delete</Text>
             </TouchableOpacity>
@@ -268,22 +280,27 @@ const ControlTransaction = () => {
 
   return (
     <View style={styles.container}>
-      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
-      <CustomButton title="Create New Transaction" onPress={() => openModal()} variant="filled" />
+      <Text style={styles.header}>Manage Transactions</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>{'< Back'}</Text>
+      </TouchableOpacity>
       <TextInput
-        placeholder="Search Transactions"
+        placeholder="Search by Type, Amount, or Description"
         style={styles.searchInput}
         value={searchQuery}
         onChangeText={handleSearch}
       />
+      <TouchableOpacity onPress={() => openModal()} style={styles.createButton}>
+        <Text style={styles.createButtonText}>+ Create New Transaction</Text>
+      </TouchableOpacity>
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />
       ) : (
         <>
           <DataTable
             data={paginatedTransactions}
             columns={[
-              { key: 'userId', label: 'Student Name' },
+              { key: 'userId', label: 'Student' },
               { key: 'amount', label: 'Amount' },
               { key: 'transactionType', label: 'Type' },
               { key: 'date', label: 'Date' },
@@ -295,7 +312,13 @@ const ControlTransaction = () => {
             sortOrder={sortOrder}
             renderItem={renderTransactionItem}
           />
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+          <View style={{ marginTop: 20 }}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </View>
         </>
       )}
       <RecordModal
@@ -307,7 +330,7 @@ const ControlTransaction = () => {
         {isEditing ? (
           <>
             <Text style={styles.readOnlyText}>
-              Student: {students.find(student => student.id === currentTransaction.userId)?.name || currentTransaction.userId}
+              Student: {formatStudentDisplay(currentTransaction.userId || '')}
             </Text>
             <Text style={styles.readOnlyText}>
               Course: {(() => {
@@ -327,7 +350,13 @@ const ControlTransaction = () => {
             >
               <Picker.Item label="Select Student" value="" />
               {students.map((student) => (
-                <Picker.Item key={student.id} label={student.name} value={student.id} />
+                <Picker.Item 
+                  key={student.id} 
+                  label={student.name && student.name.trim() !== '' 
+                    ? `${student.name} (${student.email})` 
+                    : student.email} 
+                  value={student.id} 
+                />
               ))}
             </Picker>
             <Picker
@@ -412,44 +441,93 @@ export default ControlTransaction;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 25,
+    color: '#4C58D0',
+    fontWeight: '500',
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 50,
   },
   itemContainer: {
     borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 10,
+    borderColor: '#E5E7EB',
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   itemText: {
     flex: 1,
+    fontSize: 14,
+    color: '#374151',
     textAlign: 'center',
   },
   itemActions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  buttonSpacer: {
+    width: 10,
   },
   editButton: {
-    backgroundColor: '#4C58D0',
-    padding: 5,
-    marginRight: 10,
-    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   deleteButton: {
     backgroundColor: '#D14C4C',
-    padding: 5,
-    borderRadius: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  createButton: {
+    alignSelf: 'center',
+    backgroundColor: '#4C58D0',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   picker: {
     height: 50,

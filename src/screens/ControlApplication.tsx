@@ -27,7 +27,7 @@ const ControlApplication = () => {
   const [applications, setApplications] = useState<ApplicationType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [courses, setCourses] = useState<CourseType[]>([]);
-  const [students, setStudents] = useState<{ id: string; name: string }[]>([]); // State to store students
+  const [students, setStudents] = useState<{ id: string; name: string; email: string }[]>([]); // Added email to the student type
 
   // Modal states
   const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -58,9 +58,10 @@ const ControlApplication = () => {
           return;
         }
         if (data && data.users) {
-          setStudents(JSON.parse(data.users).map((user: { username: string; name: string }) => ({
+          setStudents(JSON.parse(data.users).map((user: { username: string; name: string; email: string }) => ({
             id: user.username,  // Use username as the ID (sub)
-            name: user.name,
+            name: user.name || '',  // Handle cases where name might be null/undefined
+            email: user.email || '',  // Store email address
           })));
         }
       } catch (error) {
@@ -190,19 +191,34 @@ const ControlApplication = () => {
     setCurrentPage(page);
   };
 
+  // Helper function to format student display name with email
+  const formatStudentDisplay = (studentId: string) => {
+    const student = students.find(student => student.id === studentId);
+    if (!student) return studentId;
+    
+    // If name exists, show "Name (email)", otherwise just show email
+    if (student.name && student.name.trim() !== '') {
+      return `${student.name} (${student.email})`;
+    } else {
+      return student.email;
+    }
+  };
+
   const renderApplicationItem = (application: ApplicationType) => {
-    const studentName = students.find(student => student.id === application.studentId)?.name || application.studentId;
+    const studentDisplay = formatStudentDisplay(application.studentId);
     const courseName = courses.find(course => course.id === application.courseId)?.title || application.courseId;
+    
     return (
       <View key={application.id} style={styles.itemContainer}>
         <View style={styles.itemRow}>
-          <Text style={styles.itemText}>{studentName}</Text>
+          <Text style={styles.itemText}>{studentDisplay}</Text>
           <Text style={styles.itemText}>{courseName}</Text>
           <Text style={styles.itemText}>{application.status}</Text>
           <View style={styles.itemActions}>
             <TouchableOpacity onPress={() => openModal(application)} style={styles.editButton}>
               <Text style={styles.buttonText}>Edit</Text>
             </TouchableOpacity>
+            <View style={styles.buttonSpacer} />
             <TouchableOpacity onPress={() => deleteApplication(application.id)} style={styles.deleteButton}>
               <Text style={styles.buttonText}>Delete</Text>
             </TouchableOpacity>
@@ -219,22 +235,27 @@ const ControlApplication = () => {
 
   return (
     <View style={styles.container}>
-      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
-      <CustomButton title="Create New Application" onPress={() => openModal()} variant="filled" />
+      <Text style={styles.header}>Manage Applications</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>{'< Back'}</Text>
+      </TouchableOpacity>
       <TextInput
-        placeholder="Search Applications"
+        placeholder="Search by Status"
         style={styles.searchInput}
         value={searchQuery}
         onChangeText={handleSearch}
       />
+      <TouchableOpacity onPress={() => openModal()} style={styles.createButton}>
+        <Text style={styles.createButtonText}>+ Create New Application</Text>
+      </TouchableOpacity>
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />
       ) : (
         <>
           <DataTable
             data={paginatedApplications}
             columns={[
-              { key: 'studentId', label: 'Student Name' },
+              { key: 'studentId', label: 'Student' },
               { key: 'courseId', label: 'Course Name' },
               { key: 'status', label: 'Status' },
             ]}
@@ -243,7 +264,13 @@ const ControlApplication = () => {
             sortOrder={sortOrder}
             renderItem={renderApplicationItem}
           />
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+          <View style={{ marginTop: 20 }}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </View>
         </>
       )}
       <RecordModal
@@ -255,7 +282,7 @@ const ControlApplication = () => {
         {isEditing ? (
           <>
             <Text style={styles.readOnlyText}>
-              Student: {students.find(student => student.id === currentApplication.studentId)?.name || currentApplication.studentId}
+              Student: {formatStudentDisplay(currentApplication.studentId || '')}
             </Text>
             <Text style={styles.readOnlyText}>
               Course: {courses.find(course => course.id === currentApplication.courseId)?.title || currentApplication.courseId}
@@ -270,7 +297,13 @@ const ControlApplication = () => {
             >
               <Picker.Item label="Select Student" value="" />
               {students.map((student) => (
-                <Picker.Item key={student.id} label={student.name} value={student.id} />
+                <Picker.Item 
+                  key={student.id} 
+                  label={student.name && student.name.trim() !== '' ? 
+                    `${student.name} (${student.email})` : 
+                    student.email} 
+                  value={student.id} 
+                />
               ))}
             </Picker>
             <Picker
@@ -304,55 +337,113 @@ export default ControlApplication;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 25,
+    color: '#4C58D0',
+    fontWeight: '500',
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 50,
   },
   itemContainer: {
     borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 10,
+    borderColor: '#E5E7EB',
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   itemText: {
     flex: 1,
+    fontSize: 14,
+    color: '#374151',
     textAlign: 'center',
   },
   itemActions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  buttonSpacer: {
+    width: 10, // Add spacing between buttons
   },
   editButton: {
-    backgroundColor: '#4C58D0',
-    padding: 5,
-    marginRight: 10,
-    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   deleteButton: {
     backgroundColor: '#D14C4C',
-    padding: 5,
-    borderRadius: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  pagination: {
+    marginTop: 20,
   },
   picker: {
     height: 50,
     width: '100%',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginVertical: 10,
   },
   readOnlyText: {
     fontSize: 16,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
     marginVertical: 5,
+  },
+  createButton: {
+    alignSelf: 'center',
+    backgroundColor: '#4C58D0',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

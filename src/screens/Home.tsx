@@ -1,21 +1,29 @@
-import * as React from 'react';
-import { useEffect, useState, useCallback } from 'react';
-import { View, Pressable, Text, StyleSheet, FlatList, Image, Platform } from 'react-native';
+import React, { useState, useCallback } from 'react';
+
+import {
+    View,
+    Text,
+    FlatList,
+    Image,
+    Platform,
+    StyleSheet,
+    Pressable
+} from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { generateClient } from 'aws-amplify/data';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faUser } from '@fortawesome/free-solid-svg-icons';
+import { faPersonChalkboard, faUser } from '@fortawesome/free-solid-svg-icons';
 import globalStyles from '../styles/globalStyles';
 import CustomButton from '../components/CustomButton';
-import type { Schema } from '../../amplify/data/resource';  // Import Schema
-import type { StackNavigationProp } from '@react-navigation/stack';
 import Pagination from '../components/Pagination';
+import type { Schema } from '../../amplify/data/resource';
+import type { StackNavigationProp } from '@react-navigation/stack';
 
 type HomeStackParamList = {
     Reschedule: {
-        bookingId: string; // Now composite: studentId_lessonId
+        bookingId: string;
         lessonId: string;
         studentId: string;
     };
@@ -23,25 +31,30 @@ type HomeStackParamList = {
 
 const client = generateClient<Schema>();
 
-// Use the Schema type to ensure consistency
 type Booking = Schema['Booking']['type'];
-type Lesson = Schema['Lesson']['type'];
-type InstructorAvailability = Schema['InstructorAvailability']['type'];
 
 interface Session extends Booking {
-  title: string;
-  order: number;
-  date: string;
-  timeStart: string;
-  timeEnd: string;
-  numberOfReschedules?: number; // Add this optional property
-  lessonId: string; // Add this required property
-  instructorAvailabilityId: string; // Add this required property
+    status: string;
+    title: string;
+    order: number;
+    date: string;
+    timeStart: string;
+    timeEnd: string;
+    numberOfReschedules?: number;
+    lessonId: string;
+    instructorAvailabilityId: string;
+    studentId: string;
 }
 
-const Home = () => {
+interface UserAttributes {
+    name: string;
+    email: string;
+    sub: string;
+}
+
+const Home: React.FC = () => {
     const navigation = useNavigation<StackNavigationProp<HomeStackParamList>>();
-    const [user, setUser] = useState<any>(null);  // Consider a more specific user type
+    const [user, setUser] = useState<UserAttributes | null>(null);
     const [pocketBalance, setPocketBalance] = useState<number>(0);
     const [userSessions, setUserSessions] = useState<Session[]>([]);
     const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
@@ -53,57 +66,55 @@ const Home = () => {
     const fetchData = async () => {
         try {
             setIsLoading(true);
-            const currentUser = await fetchUserAttributes();
-            console.log("currentUser:", currentUser); // DEBUG: Check the user object
-            setUser(currentUser);
-
-            if (!currentUser || !currentUser.sub) {
-                console.error("User not authenticated or sub is missing.");
-                setIsLoading(false); // Important: Stop loading
-                return; // Exit the function
+            const attributes = await fetchUserAttributes();
+            let formattedUser: UserAttributes;
+            if (Array.isArray(attributes)) {
+                formattedUser = {
+                    name: attributes.find((attr: any) => attr.Name === 'name')?.Value || '',
+                    email: attributes.find((attr: any) => attr.Name === 'email')?.Value || '',
+                    sub: attributes.find((attr: any) => attr.Name === 'sub')?.Value || ''
+                };
+            } else {
+                formattedUser = attributes as UserAttributes;
             }
-            const userId = currentUser.sub;
+            if (!formattedUser.sub) return;
+            setUser(formattedUser);
 
+            const userId = formattedUser.sub;
             const { data: userData } = await client.models.User.get({ id: userId });
-            setPocketBalance(userData?.pocketBalance || 0);
+            setPocketBalance(userData?.pocketBalance ?? 0);
 
             const { data: bookings } = await client.models.Booking.list({
-                filter: { studentId: { eq: userId } },
+                filter: { studentId: { eq: userId } }
             });
-            console.log("bookings:", bookings); // DEBUG: Check the bookings array
 
-            const sessions: Session[] = await Promise.all(
-                bookings.map(async (booking: Booking) => {
-                    try { // Added try-catch inside map
-                        const lesson = await booking.lesson();
-                        if (!lesson?.data) {
-                            console.warn("Lesson data is missing for booking:", booking);
-                            return null; // Return null for this booking
+            const sessions: Session[] = (
+                await Promise.all(
+                    bookings.map(async (booking: Booking) => {
+                        try {
+                            const lesson = await booking.lesson();
+                            const availability = await booking.availability();
+                            if (!lesson?.data || !availability?.data) return null;
+                            return {
+                                ...booking,
+                                status: booking.status,
+                                title: lesson.data.title || 'Untitled',
+                                order: lesson.data.order || 0,
+                                date: availability.data.date || '',
+                                timeStart: availability.data.timeStart || '',
+                                timeEnd: availability.data.timeEnd || '',
+                                studentId: booking.studentId
+                            } as Session;
+                        } catch {
+                            return null;
                         }
-                        const availability = await booking.availability();
-
-                        if (!availability?.data) {
-                            console.warn("Lesson or Availability data is missing for booking:", booking);
-                            return null; // Return null for this booking
-                        }
-
-                        return {
-                            ...booking,
-                            title: lesson.data.title || 'Untitled',
-                            order: lesson.data.order || 0,
-                            date: availability.data.date || '',
-                            timeStart: availability.data.timeStart || '',
-                            timeEnd: availability.data.timeEnd || '',
-                        };
-                    } catch (error) {
-                        console.error("Error fetching lesson or availability for booking:", booking, error);
-                        return null; // Return null on error
-                    }
-                })
-            ).then(results => results.filter((session): session is Session => session !== null)); // Filter out nulls *after* Promise.all resolves
+                    })
+                )
+            ).filter((session): session is Session => session !== null);
 
             setUserSessions(sessions);
-            setFilteredSessions(sessions.filter((s) => s.status === 'scheduled'));
+            setFilteredSessions(sessions.filter(s => s.status === 'scheduled'));
+            setCurrentPage(1);
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -111,15 +122,11 @@ const Home = () => {
         }
     };
 
-    // Use useFocusEffect to trigger data fetch when screen comes into focus
     useFocusEffect(
         useCallback(() => {
             fetchData();
-            // Return cleanup function if needed
-            return () => {
-                // Any cleanup code if necessary
-            };
-        }, []) // Empty dependency array as fetchData uses state setters
+            return () => {};
+        }, [])
     );
 
     const paginatedSessions = filteredSessions.slice(
@@ -128,162 +135,120 @@ const Home = () => {
     );
 
     const handlePageChange = (page: number) => {
-        if (page < 1 || page > totalPages) return;
-        setCurrentPage(page);
+        if (page >= 1 && page <= totalPages) setCurrentPage(page);
     };
 
     const handleFilter = (filterType: 'upcoming' | 'previous') => {
         setCurrentPage(1);
         if (filterType === 'upcoming') {
-            setFilteredSessions(userSessions.filter((s) => s.status === 'scheduled'));
-        } else if (filterType === 'previous') {
-            setFilteredSessions(userSessions.filter((s) => s.status === 'completed' || s.status === 'canceled')); // Include canceled
+            setFilteredSessions(userSessions.filter(s => s.status === 'scheduled'));
+        } else {
+            setFilteredSessions(
+                userSessions.filter(s => s.status === 'completed' || s.status === 'canceled')
+            );
         }
     };
 
-    const formatDate = (dateString: string): string => {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return 'Invalid Date';
-        
-        // Format to local date (DD/MM/YYYY)
-        return date.toLocaleDateString(undefined, {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
+    const formatDate = (dateStr: string): string => {
+        const d = new Date(dateStr);
+        return isNaN(d.getTime())
+            ? 'Invalid Date'
+            : d.toLocaleDateString(undefined, {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+              });
     };
 
-    const formatTimeRange = (startString: string, endString: string): string => {
-        const startDate = new Date(startString);
-        const endDate = new Date(endString);
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return 'Invalid Time';
+    const formatTimeRange = (startStr: string, endStr: string): string => {
+        const start = new Date(startStr);
+        const end = new Date(endStr);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'Invalid Time';
+        const formatTime = (date: Date) =>
+            date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
+        return `${formatTime(start)} - ${formatTime(end)}`;
+    };
 
-        // Format to local time with timezone name
-        const formatTime = (date: Date) => {
-            return date.toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
+    const handleSkipBooking = async (session: Session) => {
+        try {
+            await client.queries.RecordBooking({
+                studentId: session.studentId,
+                lessonId: session.lessonId,
+                oldInstructorAvailabilityId: session.instructorAvailabilityId,
+                action: 'skip'
             });
-        };
-
-        // Get timezone abbreviation
-        const timeZoneName = new Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timeZoneAbbr = (() => {
-            // Get timezone abbreviation
-            try {
-                const formatter = new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' });
-                const parts = formatter.formatToParts(new Date());
-                const timeZonePart = parts.find(part => part.type === 'timeZoneName');
-                return timeZonePart ? timeZonePart.value : timeZoneName;
-            } catch (error) {
-                // Fallback to offset if browser doesn't support timezone names
-                const offset = new Date().getTimezoneOffset();
-                const hours = Math.abs(Math.floor(offset / 60));
-                const minutes = Math.abs(offset % 60);
-                return `UTC${offset <= 0 ? '+' : '-'}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-            }
-        })();
-
-        return `${formatTime(startDate)} - ${formatTime(endDate)} ${timeZoneAbbr}`;
-    };
-    
-    // Define the skip booking function
-    const handleSkipBooking = async (item: Session) => {
-      try {
-        const response = await client.queries.RecordBooking({
-          studentId: item.studentId,
-          lessonId: item.lessonId,
-          oldInstructorAvailabilityId: item.availabilityId, // or the relevant field from your item
-          action: "skip"
-        });
-
-        console.log("Skip operation successful:", response);
-        // Optionally navigate or update the UI based on response
-      } catch (error) {
-        console.error("Error skipping booking:", error);
-      }
+            fetchData();
+        } catch (error) {
+            console.error('Error skipping booking:', error);
+        }
     };
 
     const renderSessionItem = ({ item }: { item: Session }) => {
-        // Check if the session has 2 or more reschedules
-        const canReschedule = item.status === 'scheduled' && (item.numberOfReschedules === undefined || item.numberOfReschedules < 2);
-        
-    return (
-      <View key={item.id}>
-          <View style={styles.sessionData}>
-              {/* Existing session data layout */}
-              <View style={styles.ImageTitleNo}>
-                  <Image
-                      source={
-                          Platform.OS === 'web'
-                              ? { uri: '/assets/App-11.png' }
-                              : require('../../assets/App-11.png')
-                      }
-                      style={styles.sessionImage}
-                  />
-                  <View style={styles.titleNo}>
-                      <Text style={styles.sessionTitle}>{item.title}</Text>
-                      <Text style={styles.sessionNo}>Session {item.order}</Text>
-                  </View>
-              </View>
-              <View style={styles.dates}>
-                  <Text style={styles.startDate}>{formatDate(item.date)}</Text>
-                  <Text style={styles.duration}>
-                      {formatTimeRange(item.timeStart, item.timeEnd)}
-                  </Text>
-              </View>
-          </View>
-          {canReschedule && (
-              <View style={styles.buttonContainer}>
-                  <View style={[globalStyles.customButton, styles.buttonWrapper]}>
-                      <CustomButton
-                          title="Reschedule"
-                          onPress={() => {
-                              navigation.navigate('Reschedule', {
-                                  bookingId: item.id, // Pass the composite ID
-                                  lessonId: item.lessonId,
-                                  studentId: item.studentId,
-                              });
-                          }}
-                          variant="filled"
-                      />
-                  </View>
-                  <View style={[globalStyles.customButton, styles.buttonWrapper]}>
-                      <CustomButton
-                          title="Skip"
-                          onPress={() => handleSkipBooking(item)}
-                          variant="outlined"
-                      />
-                  </View>
-              </View>
-          )}
-      </View>
-  );
+        const canReschedule = item.status === 'scheduled' && (item.numberOfReschedules ?? 0) < 2;
+        return (
+            <View key={item.id} style={styles.sessionCard}>
+                <View style={styles.sessionData}>
+                    <View style={styles.ImageTitleNo}>
+                        <FontAwesomeIcon
+                            icon={faPersonChalkboard}
+                            size={40}
+                            style={{ marginRight: 10 }}
+                        />
+                        <View style={styles.sessionTitleContainer}>
+                            <Text style={styles.sessionTitle} numberOfLines={2} ellipsizeMode="tail">
+                                {item.title}
+                            </Text>
+                            <Text style={styles.sessionNo}>Session {item.order}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.dates}>
+                        <Text style={styles.startDate}>{formatDate(item.date)}</Text>
+                        <Text style={styles.duration}>{formatTimeRange(item.timeStart, item.timeEnd)}</Text>
+                    </View>
+                </View>
+                {canReschedule && (
+                    <View style={styles.buttonContainer}>
+                        <View style={[globalStyles.customButton, styles.buttonWrapper]}>
+                            <CustomButton
+                                title="Reschedule"
+                                onPress={() =>
+                                    navigation.navigate('Reschedule', {
+                                        bookingId: item.id,
+                                        lessonId: item.lessonId,
+                                        studentId: item.studentId
+                                    })
+                                }
+                                variant="filled"
+                            />
+                        </View>
+                        <View style={[globalStyles.customButton, styles.buttonWrapper]}>
+                            <CustomButton title="Skip" onPress={() => handleSkipBooking(item)} variant="outlined" />
+                        </View>
+                    </View>
+                )}
+            </View>
+        );
     };
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
             <View style={styles.header}>
-                <FontAwesomeIcon icon={faUser} color={'#3A3C6D'} size={50} />
+                <FontAwesomeIcon icon={faUser} size={40} />
                 <View style={styles.info}>
-                    <Text style={styles.userName}>{user?.name || ''}</Text>
+                    <Text style={styles.userName}>{user?.name || 'User'}</Text>
                     <Text>{user?.email || ''}</Text>
                 </View>
                 <View style={styles.balance}>
                     <Text>Balance</Text>
-                    <Text style={{ fontSize: 20 }}>{pocketBalance}</Text>
+                    <Text style={styles.balanceValue}>{pocketBalance}</Text>
                 </View>
             </View>
-
-            {/* Title Section */}
-            <LinearGradient colors={['#013F7A', '#6B72CD']} style={styles.title}>
+            <LinearGradient colors={["#013F7A", "#6B72CD"]} style={styles.title}>
                 <Image
                     source={
                         Platform.OS === 'web'
-                            ? { uri: '/assets/icon3.png' }
-                            : require('../../assets/icon3.png')
+                            ? { uri: '/assets/profile-picture.png' }
+                            : require('../../assets/profile-picture.png')
                     }
                     style={styles.titleImage}
                 />
@@ -293,45 +258,33 @@ const Home = () => {
                     <Text style={styles.titleText}>House</Text>
                 </View>
             </LinearGradient>
-
-            {/* Sessions Section */}
             <View style={styles.sessions}>
                 <FlatList
                     data={paginatedSessions}
                     renderItem={renderSessionItem}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={item => item.id}
                     contentContainerStyle={styles.listContainer}
                     ItemSeparatorComponent={() => <View style={styles.listItemSeparator} />}
-                    ListEmptyComponent={() => (
-                        <Text style={styles.emptyList}>
-                            {isLoading ? 'Loading sessions...' : 'No sessions found!'}
-                        </Text>
-                    )}
-                    ListHeaderComponent={() => (
+                    ListEmptyComponent={
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={styles.emptyList}>
+                                {isLoading ? 'Loading sessions...' : 'No sessions found!'}
+                            </Text>
+                        </View>
+                    }
+                    ListHeaderComponent={
                         <View style={styles.listHeader}>
-                            <Pressable
-                                style={styles.headerItem}
-                                onPress={() => handleFilter('upcoming')}
-                            >
+                            <Pressable style={styles.headerItem} onPress={() => handleFilter('upcoming')}>
                                 <Text style={styles.headerItemText}>Upcoming Sessions</Text>
                             </Pressable>
-                            <Pressable
-                                style={styles.headerItem}
-                                onPress={() => handleFilter('previous')}
-                            >
+                            <Pressable style={styles.headerItem} onPress={() => handleFilter('previous')}>
                                 <Text style={styles.headerItemText}>Previous Sessions</Text>
                             </Pressable>
                         </View>
-                    )}
+                    }
                 />
             </View>
-
-            {/* Pagination */}
-            <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-            />
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
         </View>
     );
 };
@@ -339,123 +292,144 @@ const Home = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F2F2F2',
+        backgroundColor: '#F2F2F2'
     },
     header: {
-        flex: 1,
         flexDirection: 'row',
         justifyContent: 'space-around',
         alignItems: 'center',
         backgroundColor: '#FFE560',
         borderTopRightRadius: 40,
         borderTopLeftRadius: 40,
+        padding: 10
     },
     userName: {
         textTransform: 'uppercase',
         fontSize: 20,
-        color: '#3A3C6D',
+        color: '#3A3C6D'
     },
     info: {
-        alignItems: 'center',
+        alignItems: 'center'
     },
     balance: {
-        alignItems: 'center',
+        alignItems: 'center'
+    },
+    balanceValue: {
+        fontSize: 20
     },
     title: {
-        flex: 2,
         flexDirection: 'row',
         justifyContent: 'space-evenly',
         alignItems: 'center',
+        padding: Platform.OS === 'web' ? 5 : 10,
+        height: Platform.OS === 'web' ? 150 : undefined
     },
     titleImage: {
-        width: 250,
-        height: 250,
-        resizeMode: 'contain',
+        width: Platform.OS === 'web' ? 150 : 105,
+        height: Platform.OS === 'web' ? 150 : 137,
+        resizeMode: 'contain'
     },
     titleTextContainer: {
-        alignItems: 'flex-end',
+        alignItems: 'flex-end'
     },
     titleText: {
         color: '#FFE862',
-        fontSize: 50,
+        fontSize: 40
     },
     listItemSeparator: {
         height: 2,
         backgroundColor: '#6C7481',
         margin: 20,
-        marginBottom: 0,
+        marginBottom: 0
     },
     emptyList: {
         textAlign: 'center',
         padding: 5,
         fontSize: 20,
-        color: 'red',
+        color: 'red'
     },
     listHeader: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        backgroundColor: 'blue',
+        backgroundColor: 'rgb(76, 88, 208)'
     },
     headerItem: {
-        padding: 20,
+        padding: 20
     },
     headerItemText: {
-        color: 'white',
+        color: 'white'
     },
     listContainer: {
-        justifyContent: 'flex-start',
         backgroundColor: 'white',
         margin: 20,
         borderBottomRightRadius: 20,
         borderBottomLeftRadius: 20,
-        paddingBottom: 20,
+        paddingBottom: 20
+    },
+    sessionCard: {
+        marginHorizontal: 20,
+        marginVertical: 10,
+        backgroundColor: '#FFF',
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 3
     },
     sessionData: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        alignItems: 'flex-start',
-        padding: 25,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        padding: 15
     },
     ImageTitleNo: {
         flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        minWidth: 0
     },
-    sessionImage: {
-        width: 40,
-        height: 40,
-        resizeMode: 'contain',
+    sessionTitleContainer: {
+        flexShrink: 1,
+        flexWrap: 'wrap'
     },
-    titleNo: {},
     sessionTitle: {
-        fontSize: 20,
+        fontSize: 16,
+        fontWeight: 'bold',
+        flexWrap: 'wrap'
     },
     sessionNo: {
         fontSize: 14,
+        color: '#555'
     },
     dates: {
         alignItems: 'flex-end',
+        minWidth: 100
     },
     startDate: {
         color: 'red',
-        fontSize: 20,
+        fontSize: 18
     },
     duration: {
         color: 'red',
-        fontSize: 14,
+        fontSize: 14
     },
     sessions: {
         flex: 1,
         minHeight: '40%',
-        maxHeight: '70%',
+        maxHeight: '70%'
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         paddingHorizontal: 20,
+        paddingBottom: 10
     },
     buttonWrapper: {
         flex: 1,
-        marginHorizontal: 5,
-    },
+        marginHorizontal: 5
+    }
 });
 
 export default Home;
