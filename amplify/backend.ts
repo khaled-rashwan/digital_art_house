@@ -4,12 +4,14 @@ import { data } from './data/resource';
 import * as iam from "aws-cdk-lib/aws-iam"
 import { postConfirmation } from './auth/post-confirmation/resource';
 import { getInstructors, getUsers, getStudents, recordBooking } from '../amplify/data/resource';
+import { storage } from './storage/resource';
 /**
  * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
  */
 const backend = defineBackend({
   auth,
   data,
+  storage,
   postConfirmation,
   getInstructors,
   getUsers,

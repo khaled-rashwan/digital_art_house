@@ -7,9 +7,6 @@ export const Logo: React.FC = () => {
     <Image
       source={icon} // Use the imported asset directly
       style={{
-        width: 300,
-        height: 300,
-        resizeMode: 'contain',
         marginBottom: 20,
       }}
     />

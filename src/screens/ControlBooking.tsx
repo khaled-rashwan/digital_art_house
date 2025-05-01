@@ -91,7 +91,7 @@ const CreateBooking: React.FC = () => {
       setLoading(false);
     };
     fetchStudents();
-  }, []);
+  }, []); // Ensure this effect runs only once on mount
 
   useEffect(() => {
     if (!studentId) {
@@ -116,7 +116,7 @@ const CreateBooking: React.FC = () => {
       }
     };
     fetchCourses();
-  }, [studentId]);
+  }, [studentId]); // Add `studentId` as a dependency
 
   useEffect(() => {
     if (!selectedCourse) {
@@ -148,7 +148,7 @@ const CreateBooking: React.FC = () => {
       }
     };
     fetchLessonsAndAvailabilities();
-  }, [selectedCourse]);
+  }, [selectedCourse]); // Add `selectedCourse` as a dependency
 
   const checkExistingBooking = async (lessonId: string) => {
     try {
@@ -156,19 +156,36 @@ const CreateBooking: React.FC = () => {
       const { data: booking } = await client.models.Booking.get({ id: compositeId });
       if (booking) {
         setExistingBooking(booking);
-        setButtonText('Change Booking Date');
-        const { data: availability } = await client.models.InstructorAvailability.get({
-          id: booking.availabilityId,
-        });
-        if (availability) {
-          setCurrentAvailability(availability);
-          const date = new Date(availability.timeStart).toISOString().split('T')[0];
-          setSelectedDate(date);
-          setSelectedAvailability(booking.availabilityId);
-          const slots = availabilities.filter(slot =>
-            new Date(slot.timeStart).toISOString().split('T')[0] === date
-          );
-          setTimeSlotsForSelectedDate(slots);
+        if (booking.status === 'skipped') {
+          setButtonText('Reschedule Skipped Session');
+          const { data: availability } = await client.models.InstructorAvailability.get({
+            id: booking.availabilityId,
+          });
+          if (availability) {
+            setCurrentAvailability(availability);
+            const date = new Date(availability.timeStart).toISOString().split('T')[0];
+            setSelectedDate(date);
+            setSelectedAvailability('');
+            const slots = availabilities.filter(slot =>
+              new Date(slot.timeStart).toISOString().split('T')[0] === date
+            );
+            setTimeSlotsForSelectedDate(slots);
+          }
+        } else {
+          setButtonText('Change Booking Date');
+          const { data: availability } = await client.models.InstructorAvailability.get({
+            id: booking.availabilityId,
+          });
+          if (availability) {
+            setCurrentAvailability(availability);
+            const date = new Date(availability.timeStart).toISOString().split('T')[0];
+            setSelectedDate(date);
+            setSelectedAvailability(booking.availabilityId);
+            const slots = availabilities.filter(slot =>
+              new Date(slot.timeStart).toISOString().split('T')[0] === date
+            );
+            setTimeSlotsForSelectedDate(slots);
+          }
         }
       } else {
         setExistingBooking(null);
@@ -254,13 +271,15 @@ const CreateBooking: React.FC = () => {
       );
       setTimeSlotsForSelectedDate(sortedSlots);
     }
-  }, [selectedDate, timeSlotsForSelectedDate]);
+  }, [selectedDate]); // Remove `timeSlotsForSelectedDate` to avoid unnecessary re-renders
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Create Booking</Text>
-      <Button title="Back" onPress={() => navigation.goBack()} />
-      {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.loader} />}
+      <Text style={styles.header}>Manage Bookings</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>{'< Back'}</Text>
+      </TouchableOpacity>
+      {loading && <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />}
 
       <View style={styles.selectorContainer}>
         <Text style={styles.label}>Select Student:</Text>
@@ -331,11 +350,17 @@ const CreateBooking: React.FC = () => {
 
       {existingBooking && currentAvailability && (
         <View>
-          <Text style={styles.infoText}>
-            You have already booked this lesson on{' '}
-            {new Date(currentAvailability.timeStart).toLocaleString()}.
-            Select a different date or time slot to change the booking.
-          </Text>
+          {existingBooking.status === 'skipped' ? (
+            <Text style={styles.infoText}>
+              This session was skipped on{' '}
+              {new Date(currentAvailability.timeStart).toLocaleString()}. You can reschedule it.
+            </Text>
+          ) : (
+            <Text style={styles.infoText}>
+              You have already booked this lesson on{' '}
+              {new Date(currentAvailability.timeStart).toLocaleString()}. Select a different date or time slot to change the booking.
+            </Text>
+          )}
         </View>
       )}
 
@@ -405,6 +430,7 @@ const CreateBooking: React.FC = () => {
         title={saving ? 'Processing...' : buttonText}
         onPress={reserveBooking}
         disabled={saving}
+        color="#4C58D0"
       />
     </ScrollView>
   );
@@ -413,19 +439,72 @@ const CreateBooking: React.FC = () => {
 export default CreateBooking;
 
 const styles = StyleSheet.create({
-  container: { padding: 20, flexGrow: 1, backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginVertical: 20 },
-  selectorContainer: { marginVertical: 10 },
-  label: { marginBottom: 5, fontWeight: 'bold' },
-  loader: { marginVertical: 20 },
-  slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  slot: { padding: 10, borderRadius: 5, margin: 5, width: '45%', alignItems: 'center' },
-  freeSlot: { backgroundColor: '#4CAF50' },
-  selectedSlot: { backgroundColor: '#2196F3' },
-  slotText: { color: '#fff', fontWeight: 'bold' },
-  availabilityContainer: { marginVertical: 10 },
-  infoText: { marginVertical: 10, fontSize: 16, color: 'red' },
-  calendarContainer: { marginVertical: 10 },
+  container: {
+    flexGrow: 1,
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 25,
+    color: '#4C58D0',
+    fontWeight: '500',
+  },
+  loader: {
+    marginVertical: 20,
+  },
+  selectorContainer: {
+    marginVertical: 10,
+  },
+  label: {
+    marginBottom: 5,
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#374151',
+  },
+  slotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  slot: {
+    padding: 10,
+    borderRadius: 5,
+    margin: 5,
+    width: '45%',
+    alignItems: 'center',
+  },
+  freeSlot: {
+    backgroundColor: '#4CAF50',
+  },
+  selectedSlot: {
+    backgroundColor: '#2196F3',
+  },
+  slotText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  availabilityContainer: {
+    marginVertical: 10,
+  },
+  infoText: {
+    marginVertical: 10,
+    fontSize: 16,
+    color: 'red',
+  },
+  calendarContainer: {
+    marginVertical: 10,
+  },
 });
 
 const pickerSelectStyles = StyleSheet.create({

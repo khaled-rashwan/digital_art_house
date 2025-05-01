@@ -208,15 +208,20 @@ const ControlUser = () => {
 
   return (
     <View style={styles.container}>
-      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
+      <Text style={styles.header}>Manage Students</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          {/* Replace with Icon if using a library */}
+          {/* <Icon name="arrow-back" size={24} color="#333" /> */}
+           <Text style={styles.backButtonText}>{'< Back'}</Text>
+        </TouchableOpacity>
       <TextInput
-        placeholder="Search Students"
+        placeholder="Search by ID, Name, or Email"
         style={styles.searchInput}
         value={searchQuery}
         onChangeText={handleSearch}
       />
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />
       ) : (
         <>
           <DataTable<StudentType>
@@ -231,7 +236,13 @@ const ControlUser = () => {
             sortOrder={sortOrder}
             renderItem={renderStudentItem}
           />
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+          <View style={{ marginTop: 20 }}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </View>
         </>
       )}
       <RecordModal
@@ -242,7 +253,7 @@ const ControlUser = () => {
       >
         <TextInput
           placeholder="Pocket Balance"
-          style={styles.input}
+          style={styles.modalInput}
           value={currentStudent ? currentStudent.pocketBalance.toString() : ''}
           keyboardType="numeric"
           onChangeText={(text) => {
@@ -265,44 +276,80 @@ export default ControlUser;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 50,
   },
   itemContainer: {
     borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 10,
+    borderColor: '#E5E7EB',
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   itemText: {
     flex: 1,
+    fontSize: 14,
+    color: '#374151',
     textAlign: 'center',
   },
   itemActions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   editButton: {
-    backgroundColor: '#4C58D0',
-    padding: 5,
-    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
-  input: {
+  pagination: {
+    marginTop: 20,
+  },
+  modalInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 5,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginVertical: 10,
+  },
+  backButtonText: {
+      fontSize: 25,
+      color: '#4C58D0', // Accent color
+      fontWeight: '500',
   },
 });

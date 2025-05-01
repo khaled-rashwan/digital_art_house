@@ -34,17 +34,8 @@ const ContactUs = () => {
         : `https://wa.me/${formattedNumber}`;
 
     Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert(
-            "Error",
-            Platform.OS === "web"
-              ? "Cannot open WhatsApp Web. Please check your browser or WhatsApp installation."
-              : "WhatsApp is not installed on your device"
-          );
-        }
+      .then(() => {
+        Linking.openURL(url);
       })
       .catch((err) => {
         Alert.alert("Error", "Failed to open WhatsApp");

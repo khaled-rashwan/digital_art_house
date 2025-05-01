@@ -225,6 +225,7 @@ const ControlCourse = () => {
             <TouchableOpacity onPress={() => openModal(course)} style={styles.editButton}>
               <Text style={styles.buttonText}>Edit</Text>
             </TouchableOpacity>
+            <View style={styles.buttonSpacer} />
             <TouchableOpacity onPress={() => deleteCourse(course.id)} style={styles.deleteButton}>
               <Text style={styles.buttonText}>Delete</Text>
             </TouchableOpacity>
@@ -236,16 +237,21 @@ const ControlCourse = () => {
 
   return (
     <View style={styles.container}>
-      <CustomButton title="Back to Admin" onPress={() => navigation.goBack()} variant="outlined" />
-      <CustomButton title="Create New Course" onPress={() => openModal()} variant="filled" />
+      <Text style={styles.header}>Manage Courses</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Text style={styles.backButtonText}>{'< Back'}</Text>
+      </TouchableOpacity>
       <TextInput
-        placeholder="Search Courses"
+        placeholder="Search by Title or Description"
         style={styles.searchInput}
         value={searchQuery}
         onChangeText={handleSearch}
       />
+      <TouchableOpacity onPress={() => openModal()} style={styles.createButton}>
+        <Text style={styles.createButtonText}>+ Create New Course</Text>
+      </TouchableOpacity>
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4C58D0" style={styles.loader} />
       ) : (
         <>
           <DataTable
@@ -253,7 +259,7 @@ const ControlCourse = () => {
             columns={[
               { key: 'title', label: 'Title' },
               { key: 'cost', label: 'Cost' },
-              { key: 'duration', label: 'Number of sessions' },
+              { key: 'duration', label: 'Number of Sessions' },
               { key: 'available', label: 'Available' },
             ]}
             onSort={handleSort}
@@ -261,7 +267,13 @@ const ControlCourse = () => {
             sortOrder={sortOrder}
             renderItem={renderCourseItem}
           />
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
+          <View style={{ marginTop: 20 }}>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </View>
         </>
       )}
       <RecordModal
@@ -331,44 +343,93 @@ export default ControlCourse;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+  },
+  backButtonText: {
+    fontSize: 25,
+    color: '#4C58D0',
+    fontWeight: '500',
   },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
+    borderColor: '#D1D5DB',
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 20,
+  },
+  loader: {
+    marginTop: 50,
   },
   itemContainer: {
     borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 10,
+    borderColor: '#E5E7EB',
+    paddingVertical: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 10,
+    paddingHorizontal: 10,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   itemText: {
     flex: 1,
+    fontSize: 14,
+    color: '#374151',
     textAlign: 'center',
   },
   itemActions: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  buttonSpacer: {
+    width: 10, // Add spacing between buttons
   },
   editButton: {
-    backgroundColor: '#4C58D0',
-    padding: 5,
-    marginRight: 10,
-    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   deleteButton: {
     backgroundColor: '#D14C4C',
-    padding: 5,
-    borderRadius: 5,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  createButton: {
+    alignSelf: 'center',
+    backgroundColor: '#4C58D0',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  createButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   input: {
     borderWidth: 1,
